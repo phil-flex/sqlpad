@@ -45,7 +45,7 @@ class SqlEditor extends React.Component {
   }
 
   render() {
-    const { config, onChange, readOnly, value, height } = this.props
+    const { config, onChange, readOnly, value, height, fontSize } = this.props
 
     if (this.editor && config.editorWordWrap) {
       this.editor.session.setUseWrapMode(true)
@@ -68,6 +68,7 @@ class SqlEditor extends React.Component {
         readOnly={readOnly}
         value={value}
         width="100%"
+        fontSize={fontSize}
         ref={ref => {
           this.editor = ref ? ref.editor : null
         }}
@@ -79,6 +80,7 @@ class SqlEditor extends React.Component {
 SqlEditor.propTypes = {
   config: PropTypes.object.isRequired,
   height: PropTypes.string,
+  fontSize: PropTypes.number,
   onChange: PropTypes.func,
   onSelectionChange: PropTypes.func,
   readOnly: PropTypes.bool,
@@ -87,6 +89,7 @@ SqlEditor.propTypes = {
 
 SqlEditor.defaultProps = {
   height: '100%',
+  fontSize: 18,
   onSelectionChange: () => {},
   readOnly: false,
   value: ''
