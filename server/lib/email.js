@@ -1,20 +1,18 @@
 const nodemailer = require('nodemailer');
 const appLog = require('./app-log');
 
-function makeEmail(config) {
-  /**
-   * Get full sqlpad url
-   * @param {string} path - path (leading slash)
-   */
-  function fullUrl(path) {
-    const port = config.get('port');
-    const urlPort = port === 80 ? '' : ':' + port;
-    const urlPublicUrl = config.get('publicUrl');
-    const urlBaseUrl = config.get('baseUrl');
-    //return `${urlPublicUrl}${urlPort}${urlBaseUrl}${path}`;
-    // XXX: Dirty fix on extra port being generated to the public external link after reverse proxy.
-    return `${urlPublicUrl}${urlBaseUrl}${path}`;
-  }
+/**
+ * Get full sqlpad url
+ * @param {string} path - path (leading slash)
+ */
+function fullUrl(path) {
+  const urlPort = port === 80 ? '' : ':' + port
+  const urlPublicUrl = publicUrl
+  const urlBaseUrl = baseUrl
+  // XXX: Dirty fix on extra port being generated to the public external link after reverse proxy.
+  //return `${urlPublicUrl}${urlPort}${urlBaseUrl}${path}`
+  return `${urlPublicUrl}${urlBaseUrl}${path}`
+}
 
   function sendForgotPassword(to, passwordResetPath) {
     const url = fullUrl(passwordResetPath);
