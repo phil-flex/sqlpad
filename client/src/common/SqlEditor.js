@@ -40,7 +40,8 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontS
     }
   };
 
-  const { width, height } = dimensions;
+  render() {
+    const { config, onChange, readOnly, value, height, fontSize } = this.props
 
   return (
     <Measure bounds onResize={contentRect => setDimensions(contentRect.bounds)}>
