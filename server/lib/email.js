@@ -11,7 +11,9 @@ function fullUrl(path) {
   const urlPort = port === 80 ? '' : ':' + port
   const urlPublicUrl = publicUrl
   const urlBaseUrl = baseUrl
-  return `${urlPublicUrl}${urlPort}${urlBaseUrl}${path}`
+  // XXX: Dirty fix on extra port being generated to the public external link after reverse proxy.
+  //return `${urlPublicUrl}${urlPort}${urlBaseUrl}${path}`
+  return `${urlPublicUrl}${urlBaseUrl}${path}`
 }
 
 function sendForgotPassword(to, passwordResetPath) {
