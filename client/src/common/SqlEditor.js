@@ -82,6 +82,7 @@ SqlEditor.propTypes = {
 };
 
 SqlEditor.defaultProps = {
+  height: '100%',
   fontSize: 16,
   onSelectionChange: () => {},
   readOnly: false,
