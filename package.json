@@ -3,20 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "devDependencies": {
-    "babel-eslint": "^9.0.0",
-    "eslint": "5.6.0",
-    "eslint-config-react-app": "^3.0.6",
-    "eslint-plugin-flowtype": "^2.50.3",
-    "eslint-plugin-import": "^2.11.0",
-    "eslint-plugin-jsx-a11y": "^6.1.2",
-    "eslint-plugin-prettier": "^3.0.1",
-    "eslint-plugin-react": "^7.12.3",
     "husky": "^1.3.1",
-    "lint-staged": "^8.1.0",
-    "prettier": "^1.12.1"
+    "lint-staged": "^8.1.5",
+    "prettier": "^1.16.4"
   },
   "prettier": {
-    "semi": false,
     "singleQuote": true
   },
   "husky": {
@@ -25,19 +16,13 @@
     }
   },
   "lint-staged": {
-    "*.{json,css}": [
-      "prettier --write",
-      "git add"
-    ],
-    "*.js": [
-      "eslint --fix",
+    "*.{js,json,css}": [
       "prettier --write",
       "git add"
     ]
   },
   "scripts": {
-    "fixlint": "eslint --fix '**/*.js' && prettier --write '**/*.js'",
-    "lint": "eslint '**/*.js'",
-    "precommit": "lint-staged"
+    "fixlint": "npm run fixlint --prefix client && npm run fixlint --prefix server && prettier --write '**/*.js'",
+    "lint": "npm run lint --prefix client && npm run lint --prefix server && prettier --check '**/*.js'"
   }
 }
