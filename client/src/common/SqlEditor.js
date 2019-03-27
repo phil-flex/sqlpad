@@ -11,7 +11,7 @@ import AppContext from '../containers/AppContext';
 
 const noop = () => {};
 
-function SqlEditor({ onChange, readOnly, value, onSelectionChange }) {
+function SqlEditor({ onChange, readOnly, value, onSelectionChange, fontSize }) {
   const [dimensions, setDimensions] = useState({ width: -1, height: -1 });
   const [editor, setEditor] = useState(null);
   const appContext = useContext(AppContext);
