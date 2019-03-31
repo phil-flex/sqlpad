@@ -7,7 +7,6 @@ import {
   Switch
 } from 'react-router-dom';
 import Authenticated from './Authenticated';
-import ConfigurationView from './configuration/ConfigurationView';
 import ConnectionsStore from './connections/ConnectionsStore';
 import AppContext from './containers/AppContext';
 import ForgotPassword from './ForgotPassword.js';
@@ -20,7 +19,6 @@ import QueryEditorContainer from './queryEditor/QueryEditorContainer.js';
 import QueryTableOnly from './QueryTableOnly.js';
 import SignIn from './SignIn.js';
 import SignUp from './SignUp.js';
-import UsersView from './users/UsersView';
 
 // Configure message notification globally
 message.config({
@@ -58,24 +56,6 @@ function App() {
               render={({ match }) => (
                 <Authenticated>
                   <QueryEditorContainer queryId={match.params.queryId} />
-                </Authenticated>
-              )}
-            />
-            <Route
-              exact
-              path="/users"
-              render={() => (
-                <Authenticated admin>
-                  <UsersView />
-                </Authenticated>
-              )}
-            />
-            <Route
-              exact
-              path="/config-values"
-              render={() => (
-                <Authenticated admin>
-                  <ConfigurationView />
                 </Authenticated>
               )}
             />

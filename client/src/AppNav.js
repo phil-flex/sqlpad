@@ -1,21 +1,30 @@
+import PropTypes from 'prop-types';
 import Icon from 'antd/lib/icon';
 import Layout from 'antd/lib/layout';
 import Menu from 'antd/lib/menu';
 import Modal from 'antd/lib/modal';
-import PropTypes from 'prop-types';
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useCallback } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import AboutContent from './AboutContent';
 import AppContext from './containers/AppContext';
 import fetchJson from './utilities/fetch-json.js';
+import ConnectionListDrawer from './connections/ConnectionListDrawer';
+import ConfigurationDrawer from './configuration/ConfigurationDrawer';
+import UsersDrawer from './users/UserDrawer';
 
 const { Content, Sider } = Layout;
 
 function AppNav({ children, pageMenuItems }) {
   const [collapsed, setCollapsed] = useState(true);
   const [redirect, setRedirect] = useState(false);
+  const [showConnections, setShowConnections] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const [showUsers, setShowUsers] = useState(false);
   const appContext = useContext(AppContext);
   const { currentUser, version } = appContext;
+
+  const handleConfigClose = useCallback(() => setShowConfig(false), []);
+  const handleUsersClose = useCallback(() => setShowUsers(false), []);
 
   if (redirect) {
     return <Redirect push to="/signin" />;
@@ -65,28 +74,26 @@ function AppNav({ children, pageMenuItems }) {
           <Route
             render={({ history }) => (
               <Menu theme="dark" selectable={false} mode="inline">
-                {currentUser.role === 'admin' && (
+                {currentUser.role === 'admin' && [
                   <Menu.Item
-                    key="users"
-                    onClick={() => {
-                      history.push('/users');
-                    }}
+                    key="connections-drawer"
+                    onClick={() => setShowConnections(true)}
                   >
+                    <Icon type="database" />
+                    <span>DB connections</span>
+                  </Menu.Item>,
+                  <Menu.Item key="users" onClick={() => setShowUsers(true)}>
                     <Icon type="team" />
                     <span>Users</span>
-                  </Menu.Item>
-                )}
-                {currentUser.role === 'admin' && (
+                  </Menu.Item>,
                   <Menu.Item
                     key="configuration"
-                    onClick={() => {
-                      history.push('/config-values');
-                    }}
+                    onClick={() => setShowConfig(true)}
                   >
                     <Icon type="setting" />
                     <span>Configuration</span>
                   </Menu.Item>
-                )}
+                ]}
                 {version && version.updateAvailable && (
                   <Menu.Item
                     key="update"
@@ -144,6 +151,12 @@ function AppNav({ children, pageMenuItems }) {
       <Layout className="flex w-100 bg-white">
         <Content className="flex w-100">{children}</Content>
       </Layout>
+      <ConnectionListDrawer
+        visible={showConnections}
+        onClose={() => setShowConnections(false)}
+      />
+      <ConfigurationDrawer visible={showConfig} onClose={handleConfigClose} />
+      <UsersDrawer visible={showUsers} onClose={handleUsersClose} />
     </Layout>
   );
 }
