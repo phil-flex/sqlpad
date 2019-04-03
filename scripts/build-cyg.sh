@@ -6,9 +6,9 @@ cd $SCRIPTS_DIR/..
 SQLPAD_DIR=`pwd`
 
 # Install node modules per package-lock.json
-npm ci
-(cd $SQLPAD_DIR/client && npm ci --verbose)
-(cd $SQLPAD_DIR/server && npm ci --verbose)
+npm i
+(cd $SQLPAD_DIR/client && npm i --verbose)
+(cd $SQLPAD_DIR/server && npm i --verbose)
 
 # Build front-end
 (cd $SQLPAD_DIR/client && npm run build)
