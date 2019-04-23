@@ -4,6 +4,7 @@ import sortBy from 'lodash/sortBy';
 import message from 'antd/lib/message';
 import sqlFormatter from 'sql-formatter';
 import fetchJson from '../utilities/fetch-json.js';
+import updateCompletions from '../utilities/updateCompletions.js';
 
 const ONE_HOUR_MS = 1000 * 60 * 60;
 
@@ -28,25 +29,42 @@ export const unistoreStore = createStore({
   connections: [],
   connectionsLastUpdated: null,
   connectionsLoading: false,
-  activeTabKey: 'sql',
   availableTags: [],
   cacheKey: uuid.v1(),
   isRunning: false,
   isSaving: false,
+  queries: [],
   query: Object.assign({}, NEW_QUERY),
   queryResult: undefined,
   queryError: null,
   runQueryStartTime: undefined,
   selectedText: '',
-  showModal: false,
   showValidation: false,
-  unsavedChanges: false
+  showSchema: true,
+  showVisSidebar: false,
+  unsavedChanges: false,
+  schema: {} // schema.<connectionId>.loading / schemaInfo / lastUpdated
 });
 
 // If actions is a function, it gets passed the store:
 // Actions receive current state as first parameter and any other params next
 // Actions can just return a state update:
 export const actions = store => ({
+  // APP NAV
+  toggleSchema(state) {
+    return {
+      showSchema: !state.showSchema,
+      showVisSidebar: false
+    };
+  },
+
+  toggleVisSidebar(state) {
+    return {
+      showVisSidebar: !state.showVisSidebar,
+      showSchema: false
+    };
+  },
+
   // CONFIG
   async refreshAppContext() {
     const json = await fetchJson('GET', 'api/app');
@@ -66,6 +84,67 @@ export const actions = store => ({
       passport: json.passport,
       adminRegistrationOpen: json.adminRegistrationOpen,
       version: json.version
+    };
+  },
+
+  // SCHEMA
+  async loadSchemaInfo(state, connectionId, reload) {
+    const { schema } = state;
+    if (!schema[connectionId] || reload) {
+      store.setState({
+        schema: {
+          ...schema,
+          [connectionId]: {
+            loading: true,
+            expanded: {}
+          }
+        }
+      });
+
+      const qs = reload ? '?reload=true' : '';
+      const json = await fetchJson(
+        'GET',
+        `/api/schema-info/${connectionId}${qs}`
+      );
+      const { error, schemaInfo } = json;
+      if (error) {
+        return message.error(error);
+      }
+      updateCompletions(schemaInfo);
+
+      // Pre-expand schemas
+      const expanded = {};
+      if (schemaInfo) {
+        Object.keys(schemaInfo).forEach(schemaName => {
+          expanded[schemaName] = true;
+        });
+      }
+
+      return {
+        schema: {
+          ...schema,
+          [connectionId]: {
+            loading: false,
+            schemaInfo,
+            expanded
+          }
+        }
+      };
+    }
+  },
+
+  toggleSchemaItem(state, connectionId, item) {
+    const { schema } = state;
+    const connectionSchema = schema[connectionId];
+    const open = !connectionSchema.expanded[item.id];
+    return {
+      schema: {
+        ...schema,
+        [connectionId]: {
+          ...connectionSchema,
+          expanded: { ...connectionSchema.expanded, [item.id]: open }
+        }
+      }
     };
   },
 
@@ -143,6 +222,38 @@ export const actions = store => ({
     };
   },
 
+  async loadQueries(state) {
+    const { queriesLastUpdated, queries } = state;
+    if (
+      !queries.length ||
+      (queriesLastUpdated && new Date() - queriesLastUpdated > ONE_HOUR_MS)
+    ) {
+      store.setState({ queriesLoading: true });
+      const json = await fetchJson('GET', '/api/queries');
+      if (json.error) {
+        message.error(json.error);
+      }
+      store.setState({
+        queriesLoading: false,
+        queriesLastUpdated: new Date(),
+        queries: json.queries || []
+      });
+    }
+  },
+
+  async deleteQuery(state, queryId) {
+    const { queries } = state;
+    const filteredQueries = queries.filter(q => {
+      return q._id !== queryId;
+    });
+    store.setState({ queries: filteredQueries });
+    const json = await fetchJson('DELETE', '/api/queries/' + queryId);
+    if (json.error) {
+      message.error(json.error);
+      store.setState({ queries });
+    }
+  },
+
   async loadQuery(state, queryId) {
     const { error, query } = await fetchJson('GET', `/api/queries/${queryId}`);
     if (error) {
@@ -201,17 +312,27 @@ export const actions = store => ({
     if (query._id) {
       fetchJson('PUT', `/api/queries/${query._id}`, queryData).then(json => {
         const { error, query } = json;
+        const { queries } = store.getState();
         if (error) {
           message.error(error);
           store.setState({ isSaving: false });
           return;
         }
         message.success('Query Saved');
-        store.setState({ isSaving: false, unsavedChanges: false, query });
+        const updatedQueries = queries.map(q => {
+          return q._id === query._id ? query : q;
+        });
+        store.setState({
+          isSaving: false,
+          unsavedChanges: false,
+          query,
+          queries: updatedQueries
+        });
       });
     } else {
       fetchJson('POST', `/api/queries`, queryData).then(json => {
         const { error, query } = json;
+        const { queries } = store.getState();
         if (error) {
           message.error(error);
           store.setState({ isSaving: false });
@@ -223,7 +344,12 @@ export const actions = store => ({
           `${window.BASE_URL}/queries/${query._id}`
         );
         message.success('Query Saved');
-        store.setState({ isSaving: false, unsavedChanges: false, query });
+        store.setState({
+          isSaving: false,
+          unsavedChanges: false,
+          query,
+          queries: [query].concat(queries)
+        });
       });
     }
   },
@@ -238,7 +364,6 @@ export const actions = store => ({
 
   resetNewQuery(state) {
     return {
-      activeTabKey: 'sql',
       queryResult: undefined,
       query: Object.assign({}, NEW_QUERY),
       unsavedChanges: false
@@ -276,19 +401,7 @@ export const actions = store => ({
     };
   },
 
-  handleModalHide() {
-    return { showModal: false };
-  },
-
-  handleMoreClick() {
-    return { showModal: true };
-  },
-
-  handleQuerySelectionChange(store, selectedText) {
+  handleQuerySelectionChange(state, selectedText) {
     return { selectedText };
-  },
-
-  handleTabSelect(store, event) {
-    return { activeTabKey: event.target.value };
   }
 });
