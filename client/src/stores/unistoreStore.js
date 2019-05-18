@@ -1,8 +1,7 @@
+import sortBy from 'lodash/sortBy';
 import createStore from 'unistore';
 import uuid from 'uuid';
-import sortBy from 'lodash/sortBy';
-import message from 'antd/lib/message';
-import sqlFormatter from 'sql-formatter';
+import message from '../common/message';
 import fetchJson from '../utilities/fetch-json.js';
 import updateCompletions from '../utilities/updateCompletions.js';
 
@@ -214,10 +213,20 @@ export const actions = store => ({
   },
 
   // QUERY
-  formatQuery(state) {
+  async formatQuery(state) {
     const { query } = state;
+
+    const json = await fetchJson('POST', '/api/format-sql', {
+      query: query.queryText
+    });
+
+    if (json.error) {
+      message.error(json.error);
+      return;
+    }
+
     return {
-      query: { ...query, queryText: sqlFormatter.format(query.queryText) },
+      query: { ...query, queryText: json.query },
       unsavedChanges: true
     };
   },
