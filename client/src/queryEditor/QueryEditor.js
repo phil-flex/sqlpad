@@ -1,18 +1,26 @@
 import keymaster from 'keymaster';
+import debounce from 'lodash/debounce';
 import PropTypes from 'prop-types';
 import React from 'react';
 import SplitPane from 'react-split-pane';
 import { connect } from 'unistore/react';
-import { actions } from '../stores/unistoreStore';
+import { resizeChart } from '../common/tauChartRef';
+import SchemaSidebar from '../schema/SchemaSidebar.js';
+import { loadConnections } from '../stores/connections';
+import { loadTags } from '../stores/tags';
+import {
+  formatQuery,
+  loadQuery,
+  runQuery,
+  saveQuery,
+  resetNewQuery
+} from '../stores/queries';
+import QueryEditorChart from './QueryEditorChart';
 import QueryEditorResult from './QueryEditorResult';
 import QueryEditorSqlEditor from './QueryEditorSqlEditor';
-import QueryEditorChart from './QueryEditorChart';
-import Toolbar from './toolbar/Toolbar';
-
 import QueryResultHeader from './QueryResultHeader.js';
-import SchemaSidebar from '../schema/SchemaSidebar.js';
+import Toolbar from './toolbar/Toolbar';
 import VisSidebar from './VisSidebar';
-import { resizeChart } from '../common/tauChartRef';
 
 // TODO FIXME XXX capture unsaved state to local storage
 // Prompt is removed. It doesn't always work anyways
@@ -74,10 +82,10 @@ class QueryEditor extends React.Component {
     keymaster.unbind('shift+return');
   }
 
-  handleVisPaneResize = () => {
+  handleVisPaneResize = debounce(() => {
     const { queryId } = this.props;
     resizeChart(queryId);
-  };
+  }, 700);
 
   render() {
     const {
@@ -206,5 +214,13 @@ function mapStateToProps(state, props) {
 
 export default connect(
   mapStateToProps,
-  actions
+  store => ({
+    loadConnections: loadConnections(store),
+    loadTags,
+    formatQuery,
+    loadQuery,
+    runQuery: runQuery(store),
+    saveQuery: saveQuery(store),
+    resetNewQuery
+  })
 )(QueryEditor);
