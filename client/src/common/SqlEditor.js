@@ -11,7 +11,7 @@ import AceEditor from 'react-ace';
 
 const noop = () => {};
 
-function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontSize }) {
+function SqlEditor({ config, onChange, readOnly, value, onSelectionChange }) {
   const [dimensions, setDimensions] = useState({ width: -1, height: -1 });
   const [editor, setEditor] = useState(null);
 
@@ -30,7 +30,7 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontS
       });
 
       editor.session.setUseWrapMode(Boolean(config.editorWordWrap));
-      }
+    }
   }, [editor, onChange, config]);
 
   const handleSelection = selection => {
@@ -42,38 +42,36 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontS
 
   const { width, height } = dimensions;
 
-    return (
+  return (
     <Measure bounds onResize={contentRect => setDimensions(contentRect.bounds)}>
-        {({ measureRef }) => (
-          <div ref={measureRef} className="h-100 w-100">
-            <AceEditor
-            focus={true}
-              editorProps={{ $blockScrolling: Infinity }}
-              enableBasicAutocompletion
-              enableLiveAutocompletion
-              height={height + 'px'}
-              highlightActiveLine={false}
-              mode="sql"
-              name="query-ace-editor"
+      {({ measureRef }) => (
+        <div ref={measureRef} className="h-100 w-100">
+          <AceEditor
+            focus={!readOnly}
+            editorProps={{ $blockScrolling: Infinity }}
+            enableBasicAutocompletion
+            enableLiveAutocompletion
+            height={height + 'px'}
+            highlightActiveLine={false}
+            mode="sql"
+            name="query-ace-editor"
             onLoad={editor => setEditor(editor)}
-              onChange={onChange || noop}
+            onChange={onChange || noop}
             onSelectionChange={handleSelection}
-              showGutter={false}
-              showPrintMargin={false}
-              theme="sqlserver"
-              readOnly={readOnly}
-              value={value}
-              width={width + 'px'}
-              fontSize={fontSize}
-            />
-          </div>
-        )}
-      </Measure>
-    );
-  }
+            showGutter={false}
+            showPrintMargin={false}
+            theme="sqlserver"
+            readOnly={readOnly}
+            value={value}
+            width={width + 'px'}
+          />
+        </div>
+      )}
+    </Measure>
+  );
+}
 
 SqlEditor.propTypes = {
-  fontSize: PropTypes.number,
   onChange: PropTypes.func,
   onSelectionChange: PropTypes.func,
   readOnly: PropTypes.bool,
@@ -81,7 +79,6 @@ SqlEditor.propTypes = {
 };
 
 SqlEditor.defaultProps = {
-  fontSize: 16,
   onSelectionChange: () => {},
   readOnly: false,
   value: ''

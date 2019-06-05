@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import styles from './message.module.css';
 import mitt from 'mitt';
 
 const emitter = mitt();
@@ -18,22 +19,11 @@ export function MessageDisplayer() {
 
   if (messages && messages.length > 0) {
     const msg = messages[messages.length - 1];
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          // TODO better styles
-          color: '#FFF',
-          backgroundColor: msg.type === 'error' ? 'red' : 'green',
-          padding: 8,
-          top: 16,
-          right: 16,
-          width: 200
-        }}
-      >
-        {msg.message}
-      </div>
-    );
+    const classNames = [styles.message];
+    if (msg.type === 'error') {
+      classNames.push(styles.error);
+    }
+    return <div className={classNames.join(' ')}>{msg.message}</div>;
   }
 
   return null;

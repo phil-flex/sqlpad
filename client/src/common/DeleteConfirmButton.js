@@ -1,49 +1,49 @@
 import { Dialog } from '@reach/dialog';
+import DeleteIcon from 'mdi-react/DeleteIcon';
 import React, { useRef, useState } from 'react';
-import base from './base.module.css';
 import Button from './Button';
-
-const dialogStyle = {
-  width: '500px',
-  borderRadius: '2px'
-};
+import styles from './DeleteConfirmButton.module.css';
+import IconButton from './IconButton';
 
 const DeleteConfirmButton = React.forwardRef(
-  ({ children, confirmMessage, onConfirm, className, ...rest }, ref) => {
+  ({ children, confirmMessage, onConfirm, className, icon, ...rest }, ref) => {
     const [visible, setVisible] = useState(false);
     const cancelEl = useRef(null);
 
     return (
       <>
-        <Button
-          onClick={() => setVisible(true)}
-          ref={ref}
-          type="danger"
-          {...rest}
-        >
-          {children}
-        </Button>
+        {icon ? (
+          <IconButton
+            onClick={() => setVisible(true)}
+            ref={ref}
+            type="danger"
+            {...rest}
+          >
+            <DeleteIcon />
+          </IconButton>
+        ) : (
+          <Button
+            onClick={() => setVisible(true)}
+            ref={ref}
+            type="danger"
+            {...rest}
+          >
+            {children}
+          </Button>
+        )}
         {visible && (
           <Dialog
             onDismiss={() => setVisible(false)}
-            className={base.shadow2}
-            style={dialogStyle}
+            className={styles.Dialog}
             initialFocusRef={cancelEl}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: '1.5rem',
-                marginBottom: 16
-              }}
-            >
+            <div className={styles.dialogContent}>
               <span>{confirmMessage}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-evenly' }}>
+            <div className={styles.buttonWrapper}>
               <Button
                 type="danger"
-                style={{ width: 200 }}
+                className={styles.button}
                 onClick={() => {
                   setVisible(false);
                   onConfirm();
@@ -53,7 +53,7 @@ const DeleteConfirmButton = React.forwardRef(
               </Button>
               <Button
                 ref={cancelEl}
-                style={{ width: 200 }}
+                className={styles.button}
                 onClick={() => setVisible(false)}
               >
                 Cancel

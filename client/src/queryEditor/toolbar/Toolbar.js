@@ -1,5 +1,4 @@
 import { Menu, MenuButton, MenuItem, MenuList } from '@reach/menu-button';
-import VisIcon from 'mdi-react/ChartBarIcon';
 import CopyIcon from 'mdi-react/ContentCopyIcon';
 import UnsavedIcon from 'mdi-react/ContentSaveEditIcon';
 import SaveIcon from 'mdi-react/ContentSaveIcon';
@@ -13,27 +12,38 @@ import React, { useState } from 'react';
 import { Redirect } from 'react-router-dom';
 import { connect } from 'unistore/react';
 import Button from '../../common/Button';
-import buttonStyles from '../../common/Button.module.css';
-import ButtonLink from '../../common/ButtonLink';
 import Drawer from '../../common/Drawer';
+import IconButton from '../../common/IconButton';
+import iconButtonStyles from '../../common/IconButton.module.css';
 import Input from '../../common/Input';
 import ConfigurationForm from '../../configuration/ConfigurationForm';
 import ConnectionListDrawer from '../../connections/ConnectionListDrawer';
-import { toggleSchema, toggleVisSidebar } from '../../stores/appNav';
+import { toggleSchema } from '../../stores/appNav';
 import {
   formatQuery,
-  runQuery,
-  saveQuery,
   handleCloneClick,
   resetNewQuery,
+  runQuery,
+  saveQuery,
   setQueryState
 } from '../../stores/queries';
 import UserList from '../../users/UserList';
 import fetchJson from '../../utilities/fetch-json.js';
+import ChartTypeSelect from '../ChartTypeSelect';
 import ConnectionDropDown from '../ConnectionDropdown';
 import AboutModal from './AboutModal';
 import QueryListButton from './QueryListButton';
 import QueryTagsModal from './QueryTagsModal';
+
+const growSpacerStyle = { flexShrink: 0, flexGrow: 1, width: 8 };
+const spacerStyle = { flexShrink: 0, width: 8 };
+
+function Spacer({ grow }) {
+  if (grow) {
+    return <div style={growSpacerStyle} />;
+  }
+  return <div style={spacerStyle} />;
+}
 
 function mapStateToProps(state) {
   return {
@@ -51,7 +61,6 @@ const ConnectedEditorNavBar = connect(
   mapStateToProps,
   store => ({
     toggleSchema,
-    toggleVisSidebar,
     formatQuery,
     runQuery: runQuery(store),
     saveQuery: saveQuery(store),
@@ -75,7 +84,6 @@ function Toolbar({
   setQueryState,
   showValidation,
   toggleSchema,
-  toggleVisSidebar,
   unsavedChanges
 }) {
   const [showTags, setShowTags] = useState(false);
@@ -100,37 +108,29 @@ function Toolbar({
         width: '100%',
         backgroundColor: 'rgba(0, 0, 0, 0.04)',
         padding: 6,
-        borderBottom: '1px solid #eee'
+        borderBottom: '1px solid rgb(204, 204, 204)'
       }}
     >
       <div style={{ display: 'flex' }}>
         <QueryListButton />
 
-        <ButtonLink
+        <IconButton
           to="/queries/new"
           tooltip="New query"
-          icon={<NewIcon />}
           onClick={() => resetNewQuery()}
-        />
+        >
+          <NewIcon />
+        </IconButton>
 
-        <div style={{ flexGrow: 1 }} />
+        <Spacer grow />
 
-        <Button
-          tooltip="Toggle schema"
-          onClick={toggleSchema}
-          icon={<DatabaseIcon />}
-        />
-        <Button
-          tooltip="Toggle vis"
-          onClick={toggleVisSidebar}
-          icon={<VisIcon />}
-        />
-
-        <div style={{ width: 8 }} />
+        <IconButton tooltip="Toggle schema" onClick={toggleSchema}>
+          <DatabaseIcon />
+        </IconButton>
 
         <ConnectionDropDown />
 
-        <div style={{ width: 8 }} />
+        <Spacer />
 
         <Input
           error={error}
@@ -140,40 +140,48 @@ function Toolbar({
           onChange={e => setQueryState('name', e.target.value)}
         />
 
-        <div style={{ width: 8 }} />
+        <Spacer />
 
-        <Button
-          tooltip="Tags"
-          onClick={() => setShowTags(true)}
-          icon={<TagsIcon />}
-        />
+        <IconButton tooltip="Tags" onClick={() => setShowTags(true)}>
+          <TagsIcon />
+        </IconButton>
 
         <QueryTagsModal visible={showTags} onClose={() => setShowTags(false)} />
 
-        <Button
+        <IconButton
           tooltip="Clone"
           onClick={handleCloneClick}
           disabled={cloneDisabled}
-          icon={<CopyIcon />}
-        />
+        >
+          <CopyIcon />
+        </IconButton>
 
-        <Button tooltip="Format" onClick={formatQuery} icon={<FormatIcon />} />
+        <IconButton tooltip="Format" onClick={formatQuery}>
+          <FormatIcon />
+        </IconButton>
 
-        <Button
+        <IconButton
           tooltip="Save"
           onClick={() => saveQuery()}
           disabled={isSaving}
-          icon={unsavedChanges ? <UnsavedIcon /> : <SaveIcon />}
-        />
+        >
+          {unsavedChanges ? <UnsavedIcon /> : <SaveIcon />}
+        </IconButton>
+
+        <Spacer />
 
         <Button type="primary" onClick={() => runQuery()} disabled={isRunning}>
           Run
         </Button>
 
-        <div style={{ flexGrow: 1 }} />
+        <Spacer />
+
+        <ChartTypeSelect style={{ width: 180 }} />
+
+        <Spacer grow />
 
         <Menu>
-          <MenuButton className={buttonStyles.btn}>
+          <MenuButton className={iconButtonStyles.btn}>
             <DotsVerticalIcon aria-hidden aria-label="menu" size={18} />
           </MenuButton>
           <MenuList>
