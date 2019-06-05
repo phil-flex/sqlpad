@@ -11,7 +11,7 @@ import AceEditor from 'react-ace';
 
 const noop = () => {};
 
-function SqlEditor({ config, onChange, readOnly, value, onSelectionChange }) {
+function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontSize }) {
   const [dimensions, setDimensions] = useState({ width: -1, height: -1 });
   const [editor, setEditor] = useState(null);
 
@@ -64,6 +64,7 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange }) {
             readOnly={readOnly}
             value={value}
             width={width + 'px'}
+            fontSize={fontSize}
           />
         </div>
       )}
@@ -72,6 +73,7 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange }) {
 }
 
 SqlEditor.propTypes = {
+  fontSize: PropTypes.number,
   onChange: PropTypes.func,
   onSelectionChange: PropTypes.func,
   readOnly: PropTypes.bool,
@@ -79,6 +81,7 @@ SqlEditor.propTypes = {
 };
 
 SqlEditor.defaultProps = {
+  fontSize: 16,
   onSelectionChange: () => {},
   readOnly: false,
   value: ''
