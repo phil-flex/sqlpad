@@ -12,7 +12,7 @@
 
   --primary-color: #1890ff;
   --primary-dark-color: #0070d8;
-  --primary-light-color: #2f9bff;
+  --primary-light-color: #42a4ff;
   --primary-color-90: rgba(24, 144, 255, 0.9);
   --primary-color-30: rgba(24, 144, 255, 0.3);
   --secondary-color: rgb(250, 50, 173);
@@ -64,11 +64,11 @@ input {
 }
 
 [data-reach-dialog-overlay] {
-  background: rgba(248, 70, 252, 0.5);
+  background: rgba(0, 169, 253, 0.45);
   background: radial-gradient(
     at 50% 300px,
-    rgba(248, 70, 252, 0.5) 6%,
-    rgba(0, 169, 253, 0.5) 100%
+    rgba(248, 70, 252, 0.4) 0%,
+    rgba(0, 169, 253, 0.45) 100%
   );
 }
 
