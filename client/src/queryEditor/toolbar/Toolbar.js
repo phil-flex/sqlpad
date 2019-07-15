@@ -1,4 +1,4 @@
-import { Menu, MenuButton, MenuItem, MenuList } from '@reach/menu-button';
+import { MenuItem } from '@reach/menu-button';
 import CopyIcon from 'mdi-react/ContentCopyIcon';
 import UnsavedIcon from 'mdi-react/ContentSaveEditIcon';
 import SaveIcon from 'mdi-react/ContentSaveIcon';
@@ -14,11 +14,10 @@ import { connect } from 'unistore/react';
 import Button from '../../common/Button';
 import Drawer from '../../common/Drawer';
 import IconButton from '../../common/IconButton';
-import iconButtonStyles from '../../common/IconButton.module.css';
+import IconMenu from '../../common/IconMenu';
 import Input from '../../common/Input';
 import ConfigurationForm from '../../configuration/ConfigurationForm';
 import ConnectionListDrawer from '../../connections/ConnectionListDrawer';
-import { toggleSchema } from '../../stores/appNav';
 import {
   formatQuery,
   handleCloneClick,
@@ -27,11 +26,12 @@ import {
   saveQuery,
   setQueryState
 } from '../../stores/queries';
+import { toggleSchema } from '../../stores/schema';
 import UserList from '../../users/UserList';
 import fetchJson from '../../utilities/fetch-json.js';
-import ChartTypeSelect from '../ChartTypeSelect';
 import ConnectionDropDown from '../ConnectionDropdown';
 import AboutModal from './AboutModal';
+import ChartButton from './ChartButton';
 import QueryListButton from './QueryListButton';
 import QueryTagsModal from './QueryTagsModal';
 
@@ -100,6 +100,27 @@ function Toolbar({
 
   if (redirectToSignIn) {
     return <Redirect push to="/signin" />;
+  }
+
+  // Reach UI menu / IconMenu does not like the {someBoolean && <element/>} patterm
+  // As a workaround optional MenuItems are managed in an array
+  let menuItems = [];
+  if (isAdmin) {
+    menuItems = [
+      <MenuItem key="config" onSelect={() => setShowConfig(true)}>
+        Configuration
+      </MenuItem>,
+      <MenuItem key="connections" onSelect={() => setShowConnections(true)}>
+        Connections
+      </MenuItem>,
+      <MenuItem
+        key="users"
+        style={{ borderBottom: '1px solid #ddd' }}
+        onSelect={() => setShowUsers(true)}
+      >
+        Users
+      </MenuItem>
+    ];
   }
 
   return (
@@ -176,41 +197,27 @@ function Toolbar({
 
         <Spacer />
 
-        <ChartTypeSelect style={{ width: 180 }} />
+        <ChartButton />
 
         <Spacer grow />
 
-        <Menu>
-          <MenuButton className={iconButtonStyles.btn}>
-            <DotsVerticalIcon aria-hidden aria-label="menu" size={18} />
-          </MenuButton>
-          <MenuList>
-            {isAdmin && (
-              <MenuItem onSelect={() => setShowConfig(true)}>
-                Configuration
-              </MenuItem>
-            )}
-            {isAdmin && (
-              <MenuItem onSelect={() => setShowConnections(true)}>
-                Connections
-              </MenuItem>
-            )}
-            {isAdmin && (
-              <MenuItem onSelect={() => setShowUsers(true)}>Users</MenuItem>
-            )}
-            <div style={{ borderBottom: '1px solid #ddd' }} />
-            <MenuItem onSelect={() => setShowAbout(true)}>About</MenuItem>
-            <div style={{ borderBottom: '1px solid #ddd' }} />
-            <MenuItem
-              onSelect={async () => {
-                await fetchJson('GET', '/api/signout');
-                setRedirectToSignIn(true);
-              }}
-            >
-              Sign out
-            </MenuItem>
-          </MenuList>
-        </Menu>
+        <IconMenu icon={<DotsVerticalIcon aria-label="menu" />}>
+          {menuItems}
+          <MenuItem
+            style={{ borderBottom: '1px solid #ddd' }}
+            onSelect={() => setShowAbout(true)}
+          >
+            About
+          </MenuItem>
+          <MenuItem
+            onSelect={async () => {
+              await fetchJson('GET', '/api/signout');
+              setRedirectToSignIn(true);
+            }}
+          >
+            Sign out
+          </MenuItem>
+        </IconMenu>
 
         <Drawer
           title={'Configuration'}
