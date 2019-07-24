@@ -2,7 +2,6 @@ const path = require('path');
 const datastore = require('nedb-promise');
 const mkdirp = require('mkdirp');
 const { admin, dbPath, debug, port } = require('./config').getPreDbConfig();
-const migrateSchema = require('./migrate-schema.js');
 
 mkdirp.sync(path.join(dbPath, '/cache'));
 
@@ -13,8 +12,7 @@ const db = {
   }),
   queries: datastore({ filename: path.join(dbPath, 'queries.db') }),
   cache: datastore({ filename: path.join(dbPath, 'cache.db') }),
-  config: datastore({ filename: path.join(dbPath, 'config.db') }),
-  instances: ['users', 'connections', 'queries', 'cache', 'config']
+  instances: ['users', 'connections', 'queries', 'cache']
 };
 
 // Load dbs, migrate data, and apply indexes
@@ -27,10 +25,8 @@ async function init() {
       return db[dbname].loadDatabase();
     })
   );
-  await migrateSchema(db);
   await db.users.ensureIndex({ fieldName: 'email', unique: true });
   await db.cache.ensureIndex({ fieldName: 'cacheKey', unique: true });
-  await db.config.ensureIndex({ fieldName: 'key', unique: true });
   // set autocompaction
   const tenMinutes = 1000 * 60 * 10;
   db.instances.forEach(dbname => {
