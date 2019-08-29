@@ -4,7 +4,6 @@ import { VariableSizeGrid } from 'react-window';
 import throttle from 'lodash/throttle';
 import Draggable from 'react-draggable';
 import Measure from 'react-measure';
-import SpinKitCube from './SpinKitCube.js';
 
 const renderValue = (input, fieldMeta) => {
   if (input === null || input === undefined) {
@@ -35,8 +34,11 @@ const renderValue = (input, fieldMeta) => {
  * This was removed with the change from react-virtualized to react-window, but the problem persists.
  * This is likely an ace editor issue and should probably stay until the editor is fixed
  * or changed to something else like monaco
+ *
+ * UPDATE: this also happens if you run a query with results then follow it with a query that errors out.
+ * To counter this the blur/focus has been added after component will unmount.
  */
-function handleScrollBug() {
+function handleFrozenAceBug() {
   const element = document.activeElement;
   if (element) {
     element.blur();
@@ -79,6 +81,12 @@ class QueryResultDataTable extends React.PureComponent {
     },
     columnWidths: {}
   };
+
+  componentWillUnmount() {
+    setTimeout(() => {
+      handleFrozenAceBug();
+    }, 300);
+  }
 
   static getDerivedStateFromProps(nextProps, prevState) {
     const { queryResult } = nextProps;
@@ -146,7 +154,7 @@ class QueryResultDataTable extends React.PureComponent {
       },
       () => {
         this.recalc(columnIndex);
-        handleScrollBug();
+        handleFrozenAceBug();
       }
     );
   };
@@ -226,7 +234,7 @@ class QueryResultDataTable extends React.PureComponent {
   // synchronize the scroll position of the header grid
   handleGridScroll = ({ scrollLeft }) => {
     this.headerGrid.current.scrollTo({ scrollLeft });
-    handleScrollBug();
+    handleFrozenAceBug();
   };
 
   handleContainerResize = contentRect => {
@@ -234,27 +242,8 @@ class QueryResultDataTable extends React.PureComponent {
   };
 
   render() {
-    const { isRunning, queryError, queryResult } = this.props;
+    const { queryResult } = this.props;
     const { height, width } = this.state.dimensions;
-
-    if (isRunning) {
-      return (
-        <div className="h-100 flex-center">
-          <SpinKitCube />
-        </div>
-      );
-    }
-
-    if (queryError) {
-      return (
-        <div
-          style={{ fontSize: '1.5rem', padding: 24, textAlign: 'center' }}
-          className={`h-100 bg-error flex-center`}
-        >
-          {queryError}
-        </div>
-      );
-    }
 
     if (queryResult && queryResult.rows) {
       const rowCount = queryResult.rows.length;
@@ -300,8 +289,6 @@ class QueryResultDataTable extends React.PureComponent {
 }
 
 QueryResultDataTable.propTypes = {
-  isRunning: PropTypes.bool,
-  queryError: PropTypes.string,
   queryResult: PropTypes.object
 };
 

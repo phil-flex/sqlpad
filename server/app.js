@@ -1,30 +1,26 @@
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 const express = require('express');
 const helmet = require('helmet');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
-const configUtil = require('./lib/config');
+const config = require('./lib/config');
 const version = require('./lib/version');
-const {
-  baseUrl,
-  googleClientId,
-  googleClientSecret,
-  publicUrl,
-  dbPath,
-  debug
-} = configUtil.getPreDbConfig();
 
-// Cookie secrets are generated randomly at server start
-// SQLPad (currently) is designed for running as a single instance
-// so this should be okay unless SQLPad is frequently restarting
-// TODO FIXME XXX - for v3 make all this configurable
-const cookieSecrets = debug
-  ? 'devmode'
-  : [1, 2, 3, 4].map(() => crypto.randomBytes(64).toString('hex'));
+const baseUrl = config.get('baseUrl');
+const googleClientId = config.get('googleClientId');
+const googleClientSecret = config.get('googleClientSecret');
+const publicUrl = config.get('publicUrl');
+const dbPath = config.get('dbPath');
+const debug = config.get('debug');
+const cookieSecret = config.get('cookieSecret');
+const sessionMinutes = config.get('sessionMinutes');
 
-const ONE_HOUR_MS = 1000 * 60 * 60;
+const samlEntryPoint = config.get('samlEntryPoint');
+const samlIssuer = config.get('samlIssuer');
+const samlCallbackUrl = config.get('samlCallbackUrl');
+const samlCert = config.get('samlCert');
+const samlAuthContext = config.get('samlAuthContext');
 
 if (!debug) {
   // Note actual checks will only happen if not disabled via config
@@ -71,8 +67,8 @@ app.use(
     saveUninitialized: false,
     resave: true,
     rolling: true,
-    cookie: { maxAge: ONE_HOUR_MS },
-    secret: cookieSecrets
+    cookie: { maxAge: 1000 * 60 * sessionMinutes },
+    secret: cookieSecret
   })
 );
 
@@ -82,17 +78,6 @@ app.use(baseUrl, express.static(path.join(__dirname, 'public')));
 if (debug) {
   app.use(morgan('dev'));
 }
-
-// Add config helper to req
-app.use(async function(req, res, next) {
-  try {
-    req.config = configUtil.getHelper();
-    next();
-  } catch (error) {
-    console.error('Error getting config helper', error);
-    next(error);
-  }
-});
 
 /*  Passport setup
 ============================================================================= */
@@ -121,6 +106,19 @@ if (googleClientId && googleClientSecret && publicUrl) {
     console.log('Enabling Google authentication Strategy.');
   }
   routers.push(require('./routes/oauth.js'));
+}
+
+if (
+  samlEntryPoint &&
+  samlIssuer &&
+  samlCallbackUrl &&
+  samlCert &&
+  samlAuthContext
+) {
+  if (debug) {
+    console.log('Enabling SAML authentication Strategy.');
+  }
+  routers.push(require('./routes/saml.js'));
 }
 
 // Add all core routes to the baseUrl except for the */api/app route
