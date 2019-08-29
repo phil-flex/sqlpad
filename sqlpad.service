@@ -1,0 +1,16 @@
+[Unit]
+Description=sqlpad Server
+
+[Service]
+User=sqlpad
+Group=sqlpad
+Restart=always
+KillSignal=SIGQUIT
+WorkingDirectory=/opt/sqlpad/server
+Environment=PATH=/usr/bin:/usr/local/bin
+Environment=NODE_ENV=production
+ExecStart=/opt/sqlpad/server/server.js --dir  /var/lib/sqlpad --ip 0.0.0.0 --port 3000 --base-url /sqlpad --public-url https://public.external-site.com --admin admin@email.com --save
+
+
+[Install]
+WantedBy=multi-user.target
