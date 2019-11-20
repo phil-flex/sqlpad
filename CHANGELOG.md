@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.4.0
+
+### November 10, 2019
+
+- Add `sqlserverMultiSubnetFailover` option for SQL Server
+
+## 3.3.0
+
+### November 8, 2019
+
+- Add `SQLPAD_TIMEOUT_SECONDS` config for setting http server timeout. Useful for supporting long running queries.
+
 ## 3.2.1
 
 ### October 17, 2019
