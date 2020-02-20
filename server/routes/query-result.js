@@ -1,13 +1,9 @@
 const router = require('express').Router();
 const { runQuery } = require('../drivers/index');
-const connections = require('../models/connections.js');
-const resultCache = require('../models/resultCache.js');
-const queriesUtil = require('../models/queries.js');
-const queryHistory = require('../models/queryHistory');
+const getModels = require('../models');
 const mustHaveConnectionAccess = require('../middleware/must-have-connection-access.js');
 const mustHaveConnectionAccessOrChartLink = require('../middleware/must-have-connection-access-or-chart-link-noauth');
 const sendError = require('../lib/sendError');
-const config = require('../lib/config');
 
 // This allows executing a query relying on the saved query text
 // Instead of relying on an open endpoint that executes arbitrary sql
@@ -16,7 +12,8 @@ router.get(
   mustHaveConnectionAccessOrChartLink,
   async function(req, res) {
     try {
-      const query = await queriesUtil.findOneById(req.params._queryId);
+      const models = getModels(req.nedb);
+      const query = await models.queries.findOneById(req.params._queryId);
       if (!query) {
         return sendError(res, null, 'Query not found (save query first)');
       }
@@ -30,7 +27,7 @@ router.get(
       };
       // IMPORTANT: Send actual error here since it might have info on why the query is bad
       try {
-        const queryResult = await getQueryResult(data);
+        const queryResult = await getQueryResult(req, data);
         return res.send({ queryResult });
       } catch (error) {
         sendError(res, error);
@@ -57,28 +54,29 @@ router.post('/api/query-result', mustHaveConnectionAccess, async function(
   };
 
   try {
-    const queryResult = await getQueryResult(data);
+    const queryResult = await getQueryResult(req, data);
     return res.send({ queryResult });
   } catch (error) {
     sendError(res, error);
   }
 });
 
-async function getQueryResult(data) {
+async function getQueryResult(req, data) {
+  const models = getModels(req.nedb);
   const { connectionId, cacheKey, queryId, queryName, queryText, user } = data;
-  const connection = await connections.findOneById(connectionId);
+  const connection = await models.connections.findOneById(connectionId);
 
   if (!connection) {
     throw new Error('Please choose a connection');
   }
-  connection.maxRows = Number(config.get('queryResultMaxRows'));
+  connection.maxRows = Number(req.config.get('queryResultMaxRows'));
 
   const queryResult = await runQuery(queryText, connection, user);
   queryResult.cacheKey = cacheKey;
 
-  if (config.get('queryHistoryRetentionTimeInDays') > 0) {
-    await queryHistory.removeOldEntries();
-    await queryHistory.save({
+  if (req.config.get('queryHistoryRetentionTimeInDays') > 0) {
+    await models.queryHistory.removeOldEntries();
+    await models.queryHistory.save({
       userId: user._id,
       userEmail: user.email,
       connectionId: connection._id,
@@ -94,11 +92,11 @@ async function getQueryResult(data) {
     });
   }
 
-  if (config.get('allowCsvDownload')) {
-    resultCache.saveResultCache(cacheKey, queryName);
-    await resultCache.writeXlsx(cacheKey, queryResult);
-    await resultCache.writeCsv(cacheKey, queryResult);
-    await resultCache.writeJson(cacheKey, queryResult);
+  if (req.config.get('allowCsvDownload')) {
+    models.resultCache.saveResultCache(cacheKey, queryName);
+    await models.resultCache.writeXlsx(cacheKey, queryResult);
+    await models.resultCache.writeCsv(cacheKey, queryResult);
+    await models.resultCache.writeJson(cacheKey, queryResult);
   }
 
   return queryResult;

@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const moment = require('moment');
 const sanitize = require('sanitize-filename');
-const db = require('../lib/db.js');
+const logger = require('../lib/logger');
 const xlsx = require('node-xlsx');
 const { parse } = require('json2csv');
 const config = require('../lib/config');
@@ -20,32 +20,74 @@ function jsonFilePath(cacheKey) {
   return path.join(dbPath, '/cache/', cacheKey + '.json');
 }
 
-async function findOneByCacheKey(cacheKey) {
-  return db.cache.findOne({ cacheKey });
-}
-
-async function saveResultCache(cacheKey, queryName) {
-  if (!cacheKey) {
-    throw new Error('cacheKey required');
-  }
-  const EIGHT_HOURS = 1000 * 60 * 60 * 8;
-  const expiration = new Date(Date.now() + EIGHT_HOURS);
-  const modifiedDate = new Date();
-
-  const savedQueryName = sanitize(
-    (queryName || 'SQLPad Query Results') + ' ' + moment().format('YYYY-MM-DD')
-  );
-
-  const doc = { cacheKey, expiration, queryName: savedQueryName, modifiedDate };
-
-  const existing = await findOneByCacheKey(cacheKey);
-  if (!existing) {
-    doc.createdDate = new Date();
+function makeResultCache(nedb) {
+  async function findOneByCacheKey(cacheKey) {
+    return nedb.cache.findOne({ cacheKey });
   }
 
-  return db.cache.update({ cacheKey }, doc, {
-    upsert: true
-  });
+  async function saveResultCache(cacheKey, queryName) {
+    if (!cacheKey) {
+      throw new Error('cacheKey required');
+    }
+    const EIGHT_HOURS = 1000 * 60 * 60 * 8;
+    const expiration = new Date(Date.now() + EIGHT_HOURS);
+    const modifiedDate = new Date();
+
+    const savedQueryName = sanitize(
+      (queryName || 'SQLPad Query Results') +
+        ' ' +
+        moment().format('YYYY-MM-DD')
+    );
+
+    const doc = {
+      cacheKey,
+      expiration,
+      queryName: savedQueryName,
+      modifiedDate
+    };
+
+    const existing = await findOneByCacheKey(cacheKey);
+    if (!existing) {
+      doc.createdDate = new Date();
+    }
+
+    return nedb.cache.update({ cacheKey }, doc, {
+      upsert: true
+    });
+  }
+
+  async function removeExpired() {
+    try {
+      const docs = await nedb.cache.find({ expiration: { $lt: new Date() } });
+      for (const doc of docs) {
+        const filepaths = [
+          xlsxFilePath(doc.cacheKey),
+          csvFilePath(doc.cacheKey)
+        ];
+        filepaths.forEach(fp => {
+          if (fs.existsSync(fp)) {
+            fs.unlinkSync(fp);
+          }
+        });
+        // eslint-disable-next-line no-await-in-loop
+        await nedb.cache.remove({ _id: doc._id }, {});
+      }
+    } catch (error) {
+      logger.error(error);
+    }
+  }
+
+  return {
+    csvFilePath,
+    findOneByCacheKey,
+    jsonFilePath,
+    removeExpired,
+    saveResultCache,
+    writeCsv,
+    writeJson,
+    writeXlsx,
+    xlsxFilePath
+  };
 }
 
 function writeXlsx(cacheKey, queryResult) {
@@ -66,7 +108,7 @@ function writeXlsx(cacheKey, queryResult) {
       // if there's an error log it but otherwise continue on
       // we can still send results even if download file failed to create
       if (err) {
-        console.log(err);
+        logger.error(err);
       }
       return resolve();
     });
@@ -79,12 +121,12 @@ function writeCsv(cacheKey, queryResult) {
       const csv = parse(queryResult.rows, { fields: queryResult.fields });
       fs.writeFile(csvFilePath(cacheKey), csv, function(err) {
         if (err) {
-          console.log(err);
+          logger.error(err);
         }
         return resolve();
       });
     } catch (error) {
-      console.log(error);
+      logger.error(error);
       return resolve();
     }
   });
@@ -107,49 +149,15 @@ function writeJson(cacheKey, queryResult) {
       const json = JSON.stringify(queryResult.rows);
       fs.writeFile(jsonFilePath(cacheKey), json, function(err) {
         if (err) {
-          console.log(err);
+          logger.error(err);
         }
         return resolve();
       });
     } catch (error) {
-      console.log(error);
+      logger.error(error);
       return resolve();
     }
   });
 }
 
-/*  Result cache maintenance
-============================================================================== */
-
-async function removeExpired() {
-  try {
-    const docs = await db.cache.find({ expiration: { $lt: new Date() } });
-    for (const doc of docs) {
-      const filepaths = [xlsxFilePath(doc.cacheKey), csvFilePath(doc.cacheKey)];
-      filepaths.forEach(fp => {
-        if (fs.existsSync(fp)) {
-          fs.unlinkSync(fp);
-        }
-      });
-      // eslint-disable-next-line no-await-in-loop
-      await db.cache.remove({ _id: doc._id }, {});
-    }
-  } catch (error) {
-    console.log(error);
-  }
-}
-
-// Every five minutes check and expire cache
-const FIVE_MINUTES = 1000 * 60 * 5;
-setInterval(removeExpired, FIVE_MINUTES);
-
-module.exports = {
-  csvFilePath,
-  findOneByCacheKey,
-  jsonFilePath,
-  saveResultCache,
-  writeCsv,
-  writeJson,
-  writeXlsx,
-  xlsxFilePath
-};
+module.exports = makeResultCache;

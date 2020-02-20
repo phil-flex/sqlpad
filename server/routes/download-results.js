@@ -1,13 +1,14 @@
 const fs = require('fs');
 const router = require('express').Router();
-const resultCache = require('../models/resultCache.js');
-const config = require('../lib/config');
+const getModels = require('../models');
+const logger = require('../lib/logger');
 
 router.get('/download-results/:cacheKey.csv', async function(req, res, next) {
   const { cacheKey } = req.params;
+  const models = getModels(req.nedb);
   try {
-    if (config.get('allowCsvDownload')) {
-      const cache = await resultCache.findOneByCacheKey(cacheKey);
+    if (req.config.get('allowCsvDownload')) {
+      const cache = await models.resultCache.findOneByCacheKey(cacheKey);
       if (!cache) {
         return next(new Error('Result cache not found'));
       }
@@ -17,12 +18,12 @@ router.get('/download-results/:cacheKey.csv', async function(req, res, next) {
         'attachment; filename="' + encodeURIComponent(filename) + '"'
       );
       res.setHeader('Content-Type', 'text/csv');
-      fs.createReadStream(resultCache.csvFilePath(cacheKey)).pipe(res);
+      fs.createReadStream(models.resultCache.csvFilePath(cacheKey)).pipe(res);
     } else {
       return next(new Error('CSV download disabled'));
     }
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     // TODO figure out what this sends and set manually
     return next(error);
   }
@@ -30,9 +31,10 @@ router.get('/download-results/:cacheKey.csv', async function(req, res, next) {
 
 router.get('/download-results/:cacheKey.xlsx', async function(req, res, next) {
   const { cacheKey } = req.params;
+  const models = getModels(req.nedb);
   try {
-    if (config.get('allowCsvDownload')) {
-      const cache = await resultCache.findOneByCacheKey(cacheKey);
+    if (req.config.get('allowCsvDownload')) {
+      const cache = await models.resultCache.findOneByCacheKey(cacheKey);
       if (!cache) {
         return next(new Error('Result cache not found'));
       }
@@ -45,12 +47,12 @@ router.get('/download-results/:cacheKey.xlsx', async function(req, res, next) {
         'Content-Type',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       );
-      fs.createReadStream(resultCache.xlsxFilePath(cacheKey)).pipe(res);
+      fs.createReadStream(models.resultCache.xlsxFilePath(cacheKey)).pipe(res);
     } else {
       return next(new Error('XLSX download disabled'));
     }
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     // TODO figure out what this sends and set manually
     return next(error);
   }
@@ -58,9 +60,10 @@ router.get('/download-results/:cacheKey.xlsx', async function(req, res, next) {
 
 router.get('/download-results/:cacheKey.json', async function(req, res, next) {
   const { cacheKey } = req.params;
+  const models = getModels(req.nedb);
   try {
-    if (config.get('allowCsvDownload')) {
-      const cache = await resultCache.findOneByCacheKey(cacheKey);
+    if (req.config.get('allowCsvDownload')) {
+      const cache = await models.resultCache.findOneByCacheKey(cacheKey);
       if (!cache) {
         return next(new Error('Result cache not found'));
       }
@@ -70,12 +73,12 @@ router.get('/download-results/:cacheKey.json', async function(req, res, next) {
         'attachment; filename="' + encodeURIComponent(filename) + '"'
       );
       res.setHeader('Content-Type', 'application/json');
-      fs.createReadStream(resultCache.jsonFilePath(cacheKey)).pipe(res);
+      fs.createReadStream(models.resultCache.jsonFilePath(cacheKey)).pipe(res);
     } else {
       return next(new Error('JSON download disabled'));
     }
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     // TODO figure out what this sends and set manually
     return next(error);
   }
