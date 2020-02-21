@@ -1,10 +1,8 @@
 const uuid = require('uuid');
-const config = require('../lib/config');
+const _ = require('lodash');
 const utils = require('./utils');
 const getMeta = require('../lib/getMeta');
-const logger = require('../lib/logger');
-
-const debug = config.get('debug');
+const appLog = require('../lib/appLog');
 
 const drivers = {};
 
@@ -16,7 +14,7 @@ const drivers = {};
  */
 function validateFunction(path, driver, functionName) {
   if (typeof driver[functionName] !== 'function') {
-    logger.error('%s missing .%s() implementation', path, functionName);
+    appLog.error('%s missing .%s() implementation', path, functionName);
     process.exit(1);
   }
 }
@@ -30,9 +28,33 @@ function validateFunction(path, driver, functionName) {
 function validateArray(path, driver, arrayName) {
   const arr = driver[arrayName];
   if (!Array.isArray(arr)) {
-    logger.error('%s missing %s array', path, arrayName);
+    appLog.error('%s missing %s array', path, arrayName);
     process.exit(1);
   }
+}
+
+/**
+ * Iterates over connection object, replacing any template strings with values from user
+ * This allows dynamic values inserted based on logged in user
+ * This uses a mustache-like syntax, using double mustaches.
+ * User variables can be referenced in connection strings using dot notation
+ * Example: {{user.someKey}} and {{user.data.someKey}}
+ * @param {object} connection
+ * @param {object} user
+ */
+function renderConnection(connection, user) {
+  const replaced = {};
+  Object.keys(connection).forEach(key => {
+    const value = connection[key];
+    if (typeof value === 'string') {
+      _.templateSettings.interpolate = /{{([\s\S]+?)}}/g;
+      const compiled = _.template(value);
+      replaced[key] = compiled({ user });
+    } else {
+      replaced[key] = value;
+    }
+  });
+  return replaced;
 }
 
 /**
@@ -47,7 +69,7 @@ function requireValidate(path, optional = false) {
     driver = require(path);
   } catch (er) {
     if (optional) {
-      logger.info('optional driver %s not available', path);
+      appLog.info('optional driver %s not available', path);
       return;
     } else {
       // rethrow
@@ -56,18 +78,18 @@ function requireValidate(path, optional = false) {
   }
 
   if (!driver.id) {
-    logger.error('%s must export a unique id', path);
+    appLog.error('%s must export a unique id', path);
     process.exit(1);
   }
 
   if (!driver.name) {
-    logger.error('%s must export a name', path);
+    appLog.error('%s must export a name', path);
     process.exit(1);
   }
 
   if (drivers[driver.id]) {
-    logger.error(`Driver with id ${driver.id} already loaded`);
-    logger.error(`Ensure ${path} has a unique id exported`);
+    appLog.error(`Driver with id ${driver.id} already loaded`);
+    appLog.error(`Ensure ${path} has a unique id exported`);
     process.exit(1);
   }
 
@@ -87,23 +109,18 @@ function requireValidate(path, optional = false) {
 
 // Loads and validates drivers
 // Will populate drivers {} map
-requireValidate('../drivers/crate');
-requireValidate('../drivers/drill');
-requireValidate('../drivers/hdb');
-requireValidate('../drivers/mysql');
-requireValidate('../drivers/postgres');
-requireValidate('../drivers/presto');
-requireValidate('../drivers/sqlserver');
-requireValidate('../drivers/unixodbc', true);
-requireValidate('../drivers/vertica');
-requireValidate('../drivers/cassandra');
-requireValidate('../drivers/snowflake');
-
-// If debug is turned on also add in mock drivers
-// This is used for test cases, and is also useful for end-user debugging
-if (debug) {
-  requireValidate('../drivers/mock');
-}
+requireValidate('./crate');
+requireValidate('./drill');
+requireValidate('./hdb');
+requireValidate('./mysql');
+requireValidate('./postgres');
+requireValidate('./presto');
+requireValidate('./sqlserver');
+requireValidate('./unixodbc', true);
+requireValidate('./vertica');
+requireValidate('./cassandra');
+requireValidate('./snowflake');
+requireValidate('./mock');
 
 /**
  * Run query using driver implementation of connection
@@ -127,7 +144,9 @@ function runQuery(query, connection, user) {
     rows: []
   };
 
-  return driver.runQuery(query, connection).then(results => {
+  const renderedConnection = renderConnection(connection, user);
+
+  return driver.runQuery(query, renderedConnection).then(results => {
     const { rows, incomplete } = results;
     if (!Array.isArray(rows)) {
       throw new Error(`${connection.driver}.runQuery() must return rows array`);
@@ -140,11 +159,11 @@ function runQuery(query, connection, user) {
     queryResult.meta = getMeta(rows);
     queryResult.fields = Object.keys(queryResult.meta);
 
-    const connectionName = connection.name;
+    const connectionName = renderedConnection.name;
     const rowCount = rows.length;
     const { startTime, stopTime, queryRunTime } = queryResult;
 
-    logger.info({
+    appLog.info({
       userId: user && user._id,
       userEmail: user && user.email,
       connectionId: connection._id,
@@ -165,22 +184,26 @@ function runQuery(query, connection, user) {
  * As long as promise resolves without error
  * it is considered a successful connection config
  * @param {object} connection
+ * @param {object} user
  */
-function testConnection(connection) {
+function testConnection(connection, user) {
   const driver = drivers[connection.driver];
-  return driver.testConnection(connection);
+  const renderedConnection = renderConnection(connection, user);
+  return driver.testConnection(renderedConnection);
 }
 
 /**
  * Gets schema (sometimes called schemaInfo) for connection
  * This data is used by client to build schema tree in editor sidebar
  * @param {object} connection
+ * @param {object} user
  * @returns {Promise}
  */
-function getSchema(connection) {
+function getSchema(connection, user) {
   connection.maxRows = Number.MAX_SAFE_INTEGER;
   const driver = drivers[connection.driver];
-  return driver.getSchema(connection);
+  const renderedConnection = renderConnection(connection, user);
+  return driver.getSchema(renderedConnection);
 }
 
 /**
@@ -243,6 +266,7 @@ function validateConnection(connection) {
 module.exports = {
   getDrivers,
   getSchema,
+  renderConnection,
   runQuery,
   testConnection,
   validateConnection

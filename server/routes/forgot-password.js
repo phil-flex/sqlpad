@@ -1,12 +1,10 @@
 const router = require('express').Router();
 const uuid = require('uuid');
-const getModels = require('../models');
 const makeEmail = require('../lib/email');
 const sendError = require('../lib/sendError');
-const logger = require('../lib/logger');
 
 router.post('/api/forgot-password', async function(req, res) {
-  const models = getModels(req.nedb);
+  const { models, appLog } = req;
   if (!req.body.email) {
     return sendError(res, null, 'Email address must be provided');
   }
@@ -33,7 +31,7 @@ router.post('/api/forgot-password', async function(req, res) {
     const resetPath = `/password-reset/${user.passwordResetId}`;
     email
       .sendForgotPassword(req.body.email, resetPath)
-      .catch(error => logger.error(error));
+      .catch(error => appLog.error(error));
 
     return res.json({});
   } catch (error) {

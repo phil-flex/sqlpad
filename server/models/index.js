@@ -1,19 +1,21 @@
-const makeUsers = require('./users');
-const makeSchemaInfo = require('./schemaInfo');
-const makeResultCache = require('./resultCache');
-const makeQueryHistory = require('./queryHistory');
-const makeQueries = require('./queries');
-const makeConnections = require('./connections');
-const makeConnectionAccesses = require('./connectionAccesses');
+const Users = require('./users');
+const SchemaInfo = require('./schemaInfo');
+const ResultCache = require('./resultCache');
+const QueryHistory = require('./queryHistory');
+const Queries = require('./queries');
+const Connections = require('./connections');
+const ConnectionAccesses = require('./connectionAccesses');
 
-module.exports = function(nedb) {
-  return {
-    users: makeUsers(nedb),
-    schemaInfo: makeSchemaInfo(nedb),
-    resultCache: makeResultCache(nedb),
-    queryHistory: makeQueryHistory(nedb),
-    queries: makeQueries(nedb),
-    connections: makeConnections(nedb),
-    connectionAccesses: makeConnectionAccesses(nedb)
-  };
-};
+class Models {
+  constructor(nedb, config) {
+    this.users = new Users(nedb, config);
+    this.schemaInfo = new SchemaInfo(nedb, config);
+    this.resultCache = new ResultCache(nedb, config);
+    this.queryHistory = new QueryHistory(nedb, config);
+    this.queries = new Queries(nedb, config);
+    this.connections = new Connections(nedb, config);
+    this.connectionAccesses = new ConnectionAccesses(nedb, config);
+  }
+}
+
+module.exports = Models;

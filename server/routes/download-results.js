@@ -1,11 +1,9 @@
 const fs = require('fs');
 const router = require('express').Router();
-const getModels = require('../models');
-const logger = require('../lib/logger');
 
 router.get('/download-results/:cacheKey.csv', async function(req, res, next) {
+  const { models, appLog } = req;
   const { cacheKey } = req.params;
-  const models = getModels(req.nedb);
   try {
     if (req.config.get('allowCsvDownload')) {
       const cache = await models.resultCache.findOneByCacheKey(cacheKey);
@@ -23,15 +21,15 @@ router.get('/download-results/:cacheKey.csv', async function(req, res, next) {
       return next(new Error('CSV download disabled'));
     }
   } catch (error) {
-    logger.error(error);
+    appLog.error(error);
     // TODO figure out what this sends and set manually
     return next(error);
   }
 });
 
 router.get('/download-results/:cacheKey.xlsx', async function(req, res, next) {
+  const { models, appLog } = req;
   const { cacheKey } = req.params;
-  const models = getModels(req.nedb);
   try {
     if (req.config.get('allowCsvDownload')) {
       const cache = await models.resultCache.findOneByCacheKey(cacheKey);
@@ -52,15 +50,15 @@ router.get('/download-results/:cacheKey.xlsx', async function(req, res, next) {
       return next(new Error('XLSX download disabled'));
     }
   } catch (error) {
-    logger.error(error);
+    appLog.error(error);
     // TODO figure out what this sends and set manually
     return next(error);
   }
 });
 
 router.get('/download-results/:cacheKey.json', async function(req, res, next) {
+  const { models, appLog } = req;
   const { cacheKey } = req.params;
-  const models = getModels(req.nedb);
   try {
     if (req.config.get('allowCsvDownload')) {
       const cache = await models.resultCache.findOneByCacheKey(cacheKey);
@@ -78,7 +76,7 @@ router.get('/download-results/:cacheKey.json', async function(req, res, next) {
       return next(new Error('JSON download disabled'));
     }
   } catch (error) {
-    logger.error(error);
+    appLog.error(error);
     // TODO figure out what this sends and set manually
     return next(error);
   }

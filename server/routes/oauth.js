@@ -1,9 +1,8 @@
 const passport = require('passport');
 const PassportGoogleStrategy = require('passport-google-oauth20').Strategy;
 const router = require('express').Router();
-const logger = require('../lib/logger');
+const appLog = require('../lib/appLog');
 const checkWhitelist = require('../lib/check-whitelist.js');
-const getModels = require('../models');
 
 /**
  * Adds Google auth strategy and adds Google auth routes if Google auth is configured
@@ -22,6 +21,7 @@ function makeGoogleAuth(config) {
     profile,
     done
   ) {
+    const { models } = req;
     const email = profile && profile._json && profile._json.email;
 
     if (!email) {
@@ -29,8 +29,6 @@ function makeGoogleAuth(config) {
         message: 'email not provided from Google'
       });
     }
-
-    const models = getModels(req.nedb);
 
     try {
       let [openAdminRegistration, user] = await Promise.all([
@@ -66,7 +64,7 @@ function makeGoogleAuth(config) {
   }
 
   if (config.googleAuthConfigured()) {
-    logger.info('Enabling Google authentication strategy.');
+    appLog.info('Enabling Google authentication strategy.');
 
     // Register the passport strategy
     passport.use(

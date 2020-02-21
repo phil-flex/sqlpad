@@ -4,18 +4,18 @@ const express = require('express');
 const helmet = require('helmet');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
-const logger = require('./lib/logger');
+const appLog = require('./lib/appLog');
 
 /**
  * Create an express app using config
  * @param {object} config
  */
-function makeApp(config, nedb) {
+function makeApp(config, models) {
   if (typeof config.get !== 'function') {
     throw new Error('config is required to create app');
   }
-  if (!nedb) {
-    throw new Error('nedb is required to create app');
+  if (!models) {
+    throw new Error('models is required to create app');
   }
 
   const baseUrl = config.get('baseUrl');
@@ -43,7 +43,7 @@ function makeApp(config, nedb) {
   });
 
   /*  Express setup
-============================================================================= */
+  ============================================================================= */
   const bodyParser = require('body-parser');
   const favicon = require('serve-favicon');
   const passport = require('passport');
@@ -63,7 +63,8 @@ function makeApp(config, nedb) {
   // Decorate req with app things
   app.use(function(req, res, next) {
     req.config = config;
-    req.nedb = nedb;
+    req.models = models;
+    req.appLog = appLog;
     next();
   });
 
@@ -97,7 +98,7 @@ function makeApp(config, nedb) {
   app.use(baseUrl, express.static(path.join(__dirname, 'public')));
 
   /*  Passport setup
-============================================================================= */
+  ============================================================================= */
   require('./middleware/passport.js');
 
   // If local auth is not disabled, support basic auth using a user's email and password
@@ -107,7 +108,7 @@ function makeApp(config, nedb) {
   }
 
   /*  Routes
-============================================================================= */
+  ============================================================================= */
   const routers = [
     require('./routes/drivers.js'),
     require('./routes/users.js'),
@@ -165,8 +166,8 @@ function makeApp(config, nedb) {
       .replace(/="\/static/g, `="${baseUrl}/static`);
     app.use((req, res) => res.send(baseUrlHtml));
   } else {
-    logger.warn('NO FRONT END TEMPLATE DETECTED');
-    logger.warn('If not running in dev mode please report this issue.');
+    appLog.warn('NO FRONT END TEMPLATE DETECTED');
+    appLog.warn('If not running in dev mode please report this issue.');
   }
 
   return app;

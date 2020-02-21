@@ -1,5 +1,4 @@
 const router = require('express').Router();
-const getModels = require('../models');
 const driver = require('../drivers');
 const mustHaveConnectionAccess = require('../middleware/must-have-connection-access.js');
 const sendError = require('../lib/sendError');
@@ -8,7 +7,7 @@ router.get(
   '/api/schema-info/:connectionId',
   mustHaveConnectionAccess,
   async function(req, res) {
-    const models = getModels(req.nedb);
+    const { models, user } = req;
     const { connectionId } = req.params;
     const reload = req.query.reload === 'true';
 
@@ -25,7 +24,7 @@ router.get(
         return res.json({ schemaInfo });
       }
 
-      schemaInfo = await driver.getSchema(conn);
+      schemaInfo = await driver.getSchema(conn, user);
       if (Object.keys(schemaInfo).length) {
         await models.schemaInfo.saveSchemaInfo(connectionId, schemaInfo);
       }

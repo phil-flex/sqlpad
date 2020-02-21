@@ -1,12 +1,12 @@
 const assert = require('assert');
 const request = require('supertest');
-const getModels = require('../models');
 const consts = require('../lib/consts');
 const config = require('../lib/config');
-const { makeNedb } = require('../lib/db');
+const appLog = require('../lib/appLog');
+const { makeDb, getDb } = require('../lib/db');
 const makeApp = require('../app');
 
-const dbPromise = makeNedb(config);
+makeDb(config);
 let app;
 
 const users = {
@@ -29,7 +29,7 @@ function expectKeys(data, expectedKeys) {
 }
 
 async function reset() {
-  const nedb = await dbPromise;
+  const { nedb } = await getDb();
   return Promise.all([
     nedb.users.remove({}, { multi: true }),
     nedb.queries.remove({}, { multi: true }),
@@ -51,8 +51,7 @@ async function reset() {
 
 async function resetWithUser() {
   await reset();
-  const nedb = await dbPromise;
-  const models = getModels(nedb);
+  const { models } = await getDb();
   const saves = Object.keys(users).map(key => {
     return models.users.save(users[key]);
   });
@@ -69,7 +68,6 @@ function addAuth(req, role) {
 }
 
 async function del(role, url, statusCode = 200) {
-  await dbPromise;
   let req = request(app).delete(url);
   req = addAuth(req, role);
   const response = await req.expect(statusCode);
@@ -77,7 +75,6 @@ async function del(role, url, statusCode = 200) {
 }
 
 async function get(role, url, statusCode = 200) {
-  await dbPromise;
   let req = request(app).get(url);
   req = addAuth(req, role);
   const response = await req.expect(statusCode);
@@ -85,7 +82,6 @@ async function get(role, url, statusCode = 200) {
 }
 
 async function post(role, url, body, statusCode = 200) {
-  await dbPromise;
   let req = request(app).post(url);
   req = addAuth(req, role);
   const response = await req.send(body).expect(statusCode);
@@ -93,7 +89,6 @@ async function post(role, url, body, statusCode = 200) {
 }
 
 async function put(role, url, body, statusCode = 200) {
-  await dbPromise;
   let req = request(app).put(url);
   req = addAuth(req, role);
   const response = await req.send(body).expect(statusCode);
@@ -101,11 +96,12 @@ async function put(role, url, body, statusCode = 200) {
 }
 
 before(async function() {
-  const nedb = await dbPromise;
-  app = makeApp(config, nedb);
+  const { models } = await getDb();
+  appLog.setLevel(config.get('appLogLevel'));
+  app = makeApp(config, models);
 
   assert.throws(() => {
-    makeNedb(config);
+    makeDb(config);
   }, 'ensure nedb can be made once');
 
   return resetWithUser();
