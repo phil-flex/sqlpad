@@ -17,7 +17,10 @@ export const NEW_QUERY = {
   chartConfiguration: {
     chartType: '',
     fields: {} // key value for chart
-  }
+  },
+  canRead: true,
+  canWrite: true,
+  canDelete: true
 };
 
 export const initialState = {
@@ -71,6 +74,10 @@ export const loadQueries = store => async state => {
       queries: json.queries || []
     });
   }
+};
+
+export const clearQueries = () => {
+  return { queries: [] };
 };
 
 export const deleteQuery = store => async (state, queryId) => {
@@ -247,17 +254,18 @@ export const handleQuerySelectionChange = (state, selectedText) => {
 };
 
 export default {
-  initialState,
-  formatQuery,
-  loadQueries,
+  clearQueries,
   deleteQuery,
-  loadQuery,
-  runQuery,
-  saveQuery,
-  handleCloneClick,
-  resetNewQuery,
-  setQueryState,
+  formatQuery,
   handleChartConfigurationFieldsChange,
   handleChartTypeChange,
-  handleQuerySelectionChange
+  handleCloneClick,
+  handleQuerySelectionChange,
+  initialState,
+  loadQueries,
+  loadQuery,
+  resetNewQuery,
+  runQuery,
+  saveQuery,
+  setQueryState
 };

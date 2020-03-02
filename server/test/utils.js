@@ -1,126 +1,140 @@
 const assert = require('assert');
-const minimist = require('minimist');
+const uuid = require('uuid');
 const request = require('supertest');
-const consts = require('../lib/consts');
 const Config = require('../lib/config');
 const appLog = require('../lib/appLog');
-const { makeDb, getDb } = require('../lib/db');
+const db = require('../lib/db');
 const makeApp = require('../app');
+const migrate = require('../lib/migrate');
+const loadSeedData = require('../lib/loadSeedData');
 
-const argv = minimist(process.argv.slice(2));
-
-// TODO - restructure test utils to allow injecting different configurations
-// config values can be supplied directly, parsing different sources can be tested separately
-const config = new Config(argv);
-
-makeDb(config);
-let app;
-
-const users = {
-  admin: {
-    email: 'admin@test.com',
-    password: 'admin',
-    role: 'admin'
-  },
-  editor: {
-    email: 'editor@test.com',
-    password: 'editor',
-    role: 'editor'
-  }
-};
-
-function expectKeys(data, expectedKeys) {
-  Object.keys(data).forEach(key =>
-    assert(expectedKeys.includes(key), `expected key ${key}`)
-  );
-}
-
-async function reset() {
-  const { nedb } = await getDb();
-  return Promise.all([
-    nedb.users.remove({}, { multi: true }),
-    nedb.queries.remove({}, { multi: true }),
-    nedb.queryHistory.remove({}, { multi: true }),
-    nedb.connections.remove({}, { multi: true }),
-    nedb.connectionAccesses.remove(
+class TestUtils {
+  constructor(args = {}, env = {}) {
+    const config = new Config(
       {
-        $not: {
-          $and: [
-            { connectionId: consts.EVERY_CONNECTION_ID },
-            { userId: consts.EVERYONE_ID }
-          ]
-        }
+        debug: true,
+        // Despite being in-memory, still need a file path for cache and session files
+        // Eventually these will be moved to sqlite and we can be fully-in-memory
+        dbPath: '../dbtest',
+        dbInMemory: true,
+        ...args
       },
-      { multi: true }
-    )
-  ]);
-}
+      {
+        SQLPAD_APP_LOG_LEVEL: 'silent',
+        SQLPAD_WEB_LOG_LEVEL: 'silent',
+        ...env
+      }
+    );
 
-async function resetWithUser() {
-  await reset();
-  const { models } = await getDb();
-  const saves = Object.keys(users).map(key => {
-    return models.users.save(users[key]);
-  });
-  return Promise.all(saves);
-}
+    appLog.setLevel(config.get('appLogLevel'));
 
-function addAuth(req, role) {
-  if (users[role]) {
-    const username = users[role].email;
-    const password = users[role].password;
-    return req.auth(username, password);
+    this.config = config;
+    this.appLog = appLog;
+    this.instanceAlias = uuid.v1();
+    this.sequelizeDb = undefined;
+    this.app = undefined;
+    this.models = undefined;
+    this.nedb = undefined;
+
+    this.users = {
+      admin: {
+        _id: undefined, // set if created
+        email: 'admin@test.com',
+        password: 'admin',
+        role: 'admin'
+      },
+      editor: {
+        _id: undefined, // set if created
+        email: 'editor@test.com',
+        password: 'editor',
+        role: 'editor'
+      },
+      editor2: {
+        _id: undefined, // set if created
+        email: 'editor2@test.com',
+        password: 'editor2',
+        role: 'editor2'
+      }
+    };
   }
-  return req;
+
+  async initDbs() {
+    db.makeDb(this.config, this.instanceAlias);
+    const { models, nedb, sequelizeDb } = await db.getDb(this.instanceAlias);
+    this.models = models;
+    this.nedb = nedb;
+    this.sequelizeDb = sequelizeDb;
+  }
+
+  async migrate() {
+    await migrate(
+      this.config,
+      this.appLog,
+      this.nedb,
+      this.sequelizeDb.sequelize
+    );
+  }
+
+  async loadSeedData() {
+    await loadSeedData(this.appLog, this.config, this.models);
+  }
+
+  async init(withUsers) {
+    await this.initDbs();
+    await this.migrate();
+    await this.loadSeedData();
+
+    this.app = makeApp(this.config, this.models);
+
+    assert.throws(() => {
+      db.makeDb(this.config, this.instanceAlias);
+    }, 'ensure nedb can be made once');
+
+    if (withUsers) {
+      for (const key of Object.keys(this.users)) {
+        // eslint-disable-next-line no-await-in-loop
+        const newUser = await this.models.users.save(this.users[key]);
+        this.users[key]._id = newUser._id;
+      }
+    }
+  }
+
+  addAuth(req, role) {
+    if (this.users[role]) {
+      const username = this.users[role].email;
+      const password = this.users[role].password;
+      return req.auth(username, password);
+    }
+    return req;
+  }
+
+  async del(role, url, statusCode = 200) {
+    let req = request(this.app).delete(url);
+    req = this.addAuth(req, role);
+    const response = await req.expect(statusCode);
+    return response.body;
+  }
+
+  async get(role, url, statusCode = 200) {
+    let req = request(this.app).get(url);
+    req = this.addAuth(req, role);
+    const response = await req.expect(statusCode);
+    return response.body;
+  }
+
+  async post(role, url, body, statusCode = 200) {
+    let req = request(this.app).post(url);
+    req = this.addAuth(req, role);
+    const response = await req.send(body).expect(statusCode);
+    return response.body;
+  }
+
+  async put(role, url, body, statusCode = 200) {
+    let req = request(this.app).put(url);
+    req = this.addAuth(req, role);
+    const response = await req.send(body).expect(statusCode);
+    return response.body;
+  }
 }
 
-async function del(role, url, statusCode = 200) {
-  let req = request(app).delete(url);
-  req = addAuth(req, role);
-  const response = await req.expect(statusCode);
-  return response.body;
-}
-
-async function get(role, url, statusCode = 200) {
-  let req = request(app).get(url);
-  req = addAuth(req, role);
-  const response = await req.expect(statusCode);
-  return response.body;
-}
-
-async function post(role, url, body, statusCode = 200) {
-  let req = request(app).post(url);
-  req = addAuth(req, role);
-  const response = await req.send(body).expect(statusCode);
-  return response.body;
-}
-
-async function put(role, url, body, statusCode = 200) {
-  let req = request(app).put(url);
-  req = addAuth(req, role);
-  const response = await req.send(body).expect(statusCode);
-  return response.body;
-}
-
-before(async function() {
-  const { models } = await getDb();
-  appLog.setLevel(config.get('appLogLevel'));
-  app = makeApp(config, models);
-
-  assert.throws(() => {
-    makeDb(config);
-  }, 'ensure nedb can be made once');
-
-  return resetWithUser();
-});
-
-module.exports = {
-  config,
-  del,
-  expectKeys,
-  get,
-  post,
-  put,
-  reset,
-  resetWithUser
-};
+module.exports = TestUtils;

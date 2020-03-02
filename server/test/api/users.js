@@ -1,18 +1,19 @@
 const assert = require('assert');
-const utils = require('../utils');
+const TestUtils = require('../utils');
 
 describe('api/users', function() {
+  const utils = new TestUtils();
   let user;
 
   before(function() {
-    return utils.resetWithUser();
+    return utils.init(true);
   });
 
   it('Returns initial array', async function() {
     const body = await utils.get('admin', '/api/users');
     assert(!body.error, 'Expect no error');
     assert(Array.isArray(body.users), 'users is an array');
-    assert.equal(body.users.length, 2, '2 length');
+    assert.equal(body.users.length, 3, '3 length');
   });
 
   it('Creates user', async function() {
@@ -29,7 +30,7 @@ describe('api/users', function() {
 
   it('Gets list of users', async function() {
     const body = await utils.get('admin', '/api/users');
-    assert.equal(body.users.length, 3, '3 length');
+    assert.equal(body.users.length, 4, '4 length');
   });
 
   it('Updates user', async function() {
@@ -65,6 +66,6 @@ describe('api/users', function() {
     const body = await utils.get('admin', '/api/users');
     assert(!body.error, 'Expect no error');
     assert(Array.isArray(body.users), 'users is an array');
-    assert.equal(body.users.length, 2, '2 length');
+    assert.equal(body.users.length, 3, '3 length');
   });
 });

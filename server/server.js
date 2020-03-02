@@ -9,12 +9,14 @@ const makeApp = require('./app');
 const appLog = require('./lib/appLog');
 const Config = require('./lib/config');
 const { makeDb, getDb } = require('./lib/db');
+const migrate = require('./lib/migrate');
+const loadSeedData = require('./lib/loadSeedData');
 
 // Parse command line flags to see if anything special needs to happen
 require('./lib/cli-flow.js');
 
 const argv = minimist(process.argv.slice(2));
-const config = new Config(argv);
+const config = new Config(argv, process.env);
 
 appLog.setLevel(config.get('appLogLevel'));
 appLog.debug(config.get(), 'Final config values');
@@ -77,7 +79,16 @@ function detectPortOrSystemd(port) {
 ============================================================================= */
 let server;
 
-async function startServer(models) {
+async function startServer() {
+  const { models, nedb, sequelizeDb } = await getDb();
+
+  // Before application starts up migrate data models
+  await migrate(config, appLog, nedb, sequelizeDb.sequelize);
+
+  // Load seed data after migrations
+  await loadSeedData(appLog, config, models);
+
+  // Create expressjs app
   const app = makeApp(config, models);
 
   // determine if key pair exists for certs
@@ -131,12 +142,10 @@ async function startServer(models) {
   server.setTimeout(timeoutSeconds * 1000);
 }
 
-getDb()
-  .then(db => startServer(db.models))
-  .catch(error => {
-    appLog.error(error, 'Error starting SQLPad');
-    process.exit(1);
-  });
+startServer().catch(error => {
+  appLog.error(error, 'Error starting SQLPad');
+  process.exit(1);
+});
 
 function handleShutdownSignal(signal) {
   if (!server) {

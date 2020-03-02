@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const appLog = require('../appLog');
-const drivers = require('../../drivers');
+const validateConnection = require('../validate-connection');
 const fromDefault = require('./fromDefault');
 const fromEnv = require('./fromEnv');
 const fromCli = require('./fromCli');
@@ -8,12 +8,14 @@ const fromFile = require('./fromFile');
 const getOldConfigWarning = require('./getOldConfigWarning');
 
 class Config {
-  constructor(argv) {
+  constructor(argv, env) {
     this.argv = argv;
 
+    const configFilePathFromConfig = argv.config || env.SQLPAD_CONFIG;
+
     const defaultConfig = fromDefault();
-    const envConfig = fromEnv();
-    const [fileConfig, warnings] = fromFile();
+    const envConfig = fromEnv(env);
+    const [fileConfig, warnings] = fromFile(configFilePathFromConfig);
     const cliConfig = fromCli(argv);
 
     const all = { ...defaultConfig, ...envConfig, ...fileConfig, ...cliConfig };
@@ -138,7 +140,7 @@ class Config {
       try {
         let connection = connectionsMap[id];
         connection._id = id;
-        connection = drivers.validateConnection(connection);
+        connection = validateConnection(connection);
         connection.editable = false;
         connectionsFromConfig.push(connection);
       } catch (error) {

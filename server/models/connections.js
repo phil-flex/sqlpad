@@ -1,14 +1,16 @@
 const _ = require('lodash');
-const drivers = require('../drivers');
 const makeCipher = require('../lib/makeCipher');
+const validateConnection = require('../lib/validate-connection');
 
 class Connections {
   /**
    * @param {*} nedb
+   * @param {*} sequelizeDb
    * @param {import('../lib/config')} config
    */
-  constructor(nedb, config) {
+  constructor(nedb, sequelizeDb, config) {
     this.nedb = nedb;
+    this.sequelizeDb = sequelizeDb;
     this.config = config;
     const { cipher, decipher } = makeCipher(config.get('passphrase'));
     this.cipher = cipher;
@@ -57,6 +59,7 @@ class Connections {
     return this.nedb.connections.remove({ _id: id });
   }
 
+  // TODO - break save function out into create/update
   async save(connection) {
     if (!connection) {
       throw new Error('connections.save() requires a connection');
@@ -70,13 +73,15 @@ class Connections {
     }
     connection.modifiedDate = new Date();
 
-    connection = drivers.validateConnection(connection);
+    connection = validateConnection(connection);
     const { _id } = connection;
 
-    if (_id) {
+    const existing = await this.findOneById(_id);
+    if (existing) {
       await this.nedb.connections.update({ _id }, connection, {});
       return this.findOneById(_id);
     }
+
     const newDoc = await this.nedb.connections.insert(connection);
     return this.findOneById(newDoc._id);
   }

@@ -5,6 +5,7 @@ const appLog = require('./appLog');
 const ensureAdmin = require('./ensureAdmin');
 const consts = require('./consts');
 const Models = require('../models');
+const SequelizeDb = require('../sequelizeDb');
 
 const TEN_MINUTES = 1000 * 60 * 10;
 const FIVE_MINUTES = 1000 * 60 * 5;
@@ -28,8 +29,8 @@ async function getDb(instanceAlias = 'default') {
     throw new Error('db instance must be created first');
   }
   // nedb will already be a promise -- this just makes it explicit
-  const { nedb, models } = await instancePromise;
-  return { nedb, models };
+  const { nedb, models, sequelizeDb } = await instancePromise;
+  return { nedb, models, sequelizeDb };
 }
 
 /**
@@ -40,23 +41,26 @@ async function initNedb(config) {
   const admin = config.get('admin');
   const adminPassword = config.get('adminPassword');
   const dbPath = config.get('dbPath');
+  const dbInMemory = config.get('dbInMemory');
   const allowConnectionAccessToEveryone = config.get(
     'allowConnectionAccessToEveryone'
   );
 
   mkdirp.sync(path.join(dbPath, '/cache'));
 
+  function getDatastore(dbName) {
+    return dbInMemory
+      ? datastore()
+      : datastore({ filename: path.join(dbPath, dbName) });
+  }
+
   const nedb = {
-    users: datastore({ filename: path.join(dbPath, 'users.db') }),
-    connections: datastore({
-      filename: path.join(dbPath, 'connections.db')
-    }),
-    connectionAccesses: datastore({
-      filename: path.join(dbPath, 'connectionaccesses.db')
-    }),
-    queries: datastore({ filename: path.join(dbPath, 'queries.db') }),
-    queryHistory: datastore({ filename: path.join(dbPath, 'queryhistory.db') }),
-    cache: datastore({ filename: path.join(dbPath, 'cache.db') }),
+    users: getDatastore('users.db'),
+    connections: getDatastore('connections.db'),
+    connectionAccesses: getDatastore('connectionaccesses.db'),
+    queries: getDatastore('queries.db'),
+    queryHistory: getDatastore('queryhistory.db'),
+    cache: getDatastore('cache.db'),
     instances: [
       'users',
       'connections',
@@ -111,8 +115,10 @@ async function initNedb(config) {
     nedb[dbname].nedb.persistence.setAutocompactionInterval(TEN_MINUTES);
   });
 
+  const sequelizeDb = new SequelizeDb(config);
+
   // Schedule cleanups
-  const models = new Models(nedb, config);
+  const models = new Models(nedb, sequelizeDb, config);
   setInterval(async () => {
     await models.resultCache.removeExpired();
     await models.queryHistory.removeOldEntries();
@@ -121,7 +127,7 @@ async function initNedb(config) {
   // Ensure admin is set as specified if provided
   await ensureAdmin(nedb, admin, adminPassword);
 
-  return { nedb, models };
+  return { nedb, models, sequelizeDb };
 }
 
 /**
