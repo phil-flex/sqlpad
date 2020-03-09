@@ -1,4 +1,4 @@
-import uuid from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import message from '../common/message';
 import fetchJson from '../utilities/fetch-json.js';
 import {
@@ -24,7 +24,7 @@ export const NEW_QUERY = {
 };
 
 export const initialState = {
-  cacheKey: uuid.v4(),
+  cacheKey: uuidv4(),
   isRunning: false,
   isSaving: false,
   queries: [],
@@ -108,7 +108,13 @@ export const loadQuery = async (state, queryId) => {
 };
 
 export const runQuery = store => async state => {
-  const { cacheKey, query, selectedText, selectedConnectionId } = state;
+  const {
+    cacheKey,
+    query,
+    selectedText,
+    selectedConnectionId,
+    connectionClient
+  } = state;
 
   store.setState({
     isRunning: true,
@@ -116,6 +122,7 @@ export const runQuery = store => async state => {
   });
   const postData = {
     connectionId: selectedConnectionId,
+    connectionClientId: connectionClient && connectionClient.id,
     cacheKey,
     queryId: query._id,
     queryName: query.name,
