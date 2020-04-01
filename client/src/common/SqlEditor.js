@@ -38,8 +38,7 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontS
     }
   };
 
-  render() {
-    const { config, onChange, readOnly, value, height, fontSize } = this.props
+  const { width, height } = dimensions;
 
   const setOptions = {
     useWorker: true,
