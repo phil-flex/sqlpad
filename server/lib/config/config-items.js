@@ -116,6 +116,11 @@ const configItems = [
     default: '',
   },
   {
+    key: 'defaultConnectionId',
+    envVar: 'SQLPAD_DEFAULT_CONNECTION_ID',
+    default: '',
+  },
+  {
     key: 'googleClientId',
     envVar: 'GOOGLE_CLIENT_ID',
     default: '',
