@@ -50,11 +50,11 @@ function makeEmail(config) {
       secure: config.get('smtpSecure'),
       auth: {
         user: config.get('smtpUser'),
-        pass: config.get('smtpPassword')
+        pass: config.get('smtpPassword'),
       },
       tls: {
-        ciphers: 'SSLv3'
-      }
+        ciphers: 'SSLv3',
+      },
     };
 
     return new Promise((resolve, reject) => {
@@ -64,9 +64,9 @@ function makeEmail(config) {
         to,
         subject,
         text,
-        html
+        html,
       };
-      transporter.sendMail(mailOptions, function(err, info) {
+      transporter.sendMail(mailOptions, function (err, info) {
         appLog.info('sent email: %s', info);
         if (err) {
           appLog.error(err);
@@ -81,7 +81,7 @@ function makeEmail(config) {
     fullUrl,
     send,
     sendForgotPassword,
-    sendInvite
+    sendInvite,
   };
 }
 
