@@ -266,6 +266,11 @@ const configItems = [
     default: false,
   },
   {
+    key: 'backendDatabaseUri',
+    envVar: 'SQLPAD_BACKEND_DB_URI',
+    default: '',
+  },
+  {
     key: 'seedDataPath',
     envVar: 'SQLPAD_SEED_DATA_PATH',
     default: '',
