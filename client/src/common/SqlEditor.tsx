@@ -68,7 +68,7 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontS
             onSelectionChange={handleSelection}
             readOnly={readOnly}
             setOptions={setOptions}
-            showGutter={false}
+            showGutter={true}
             showPrintMargin={false}
             theme="sqlserver"
             value={value}
