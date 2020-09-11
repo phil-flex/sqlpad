@@ -1,17 +1,25 @@
 import PropTypes from 'prop-types';
-import React, { useState, useEffect } from 'react';
-import { connect } from 'unistore/react';
-import Measure from 'react-measure';
+import React, { useEffect, useState } from 'react';
 import AceEditor from 'react-ace';
 import 'ace-builds/src-min-noconflict/ext-searchbox';
+import Measure from 'react-measure';
+import useAppContext from '../utilities/use-app-context';
 require(`ace-builds/src-noconflict/mode-sql`);
 require(`ace-builds/src-noconflict/theme-sqlserver`);
 
 const noop = () => {};
 
-function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontSize }) {
+export interface Props {
+  onChange?: () => {};
+  readOnly: boolean;
+  value: string;
+  onSelectionChange: (value: string) => {};
+}
+
+function SqlEditor({ onChange, readOnly, value, onSelectionChange }: Props) {
+  const { config } = useAppContext();
   const [dimensions, setDimensions] = useState({ width: -1, height: -1 });
-  const [editor, setEditor] = useState(null);
+  const [editor, setEditor] = useState<any>(null);
 
   useEffect(() => {
     if (editor && onChange) {
@@ -19,7 +27,7 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontS
       // built-in behavior only starts autocomplete when at least 1 character has been typed
       // In ace the . resets the prefix token and clears the completer
       // In order to get completions for 'sometable.' we need to fire the completer manually
-      editor.commands.on('afterExec', (e) => {
+      editor.commands.on('afterExec', (e: any) => {
         if (e.command.name === 'insertstring' && /^[\w.]$/.test(e.args)) {
           if (e.args === '.') {
             editor.execCommand('startAutocomplete');
@@ -31,7 +39,7 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontS
     }
   }, [editor, onChange, config]);
 
-  const handleSelection = (selection) => {
+  const handleSelection = (selection: any) => {
     if (editor && editor.session) {
       const selectedText = editor.session.getTextRange(selection.getRange());
       onSelectionChange(selectedText);
@@ -52,7 +60,7 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontS
   return (
     <Measure
       bounds
-      onResize={(contentRect) => setDimensions(contentRect.bounds)}
+      onResize={(contentRect: any) => setDimensions(contentRect.bounds)}
     >
       {({ measureRef }) => (
         <div ref={measureRef} className="h-100 w-100">
@@ -73,7 +81,6 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontS
             theme="sqlserver"
             value={value}
             width={width + 'px'}
-            fontSize={fontSize}
           />
         </div>
       )}
@@ -82,7 +89,6 @@ function SqlEditor({ config, onChange, readOnly, value, onSelectionChange, fontS
 }
 
 SqlEditor.propTypes = {
-  fontSize: PropTypes.number,
   onChange: PropTypes.func,
   onSelectionChange: PropTypes.func,
   readOnly: PropTypes.bool,
@@ -90,10 +96,9 @@ SqlEditor.propTypes = {
 };
 
 SqlEditor.defaultProps = {
-  fontSize: 16,
   onSelectionChange: () => {},
   readOnly: false,
   value: '',
 };
 
-export default connect(['config'])(React.memo(SqlEditor));
+export default React.memo(SqlEditor);

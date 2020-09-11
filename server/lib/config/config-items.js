@@ -124,38 +124,25 @@ const configItems = [
     default: '',
   },
   {
-    key: 'defaultConnectionId',
-    envVar: 'SQLPAD_DEFAULT_CONNECTION_ID',
+    key: 'googleClientId_d',
+    envVar: 'GOOGLE_CLIENT_ID',
     default: '',
-  },
-  {
-    key: 'defaultConnectionId',
-    envVar: 'SQLPAD_DEFAULT_CONNECTION_ID',
-    default: '',
-  },
-  {
-    key: 'defaultConnectionId',
-    envVar: 'SQLPAD_DEFAULT_CONNECTION_ID',
-    default: '',
-  },
-  {
-    key: 'defaultConnectionId',
-    envVar: 'SQLPAD_DEFAULT_CONNECTION_ID',
-    default: '',
-  },
-  {
-    key: 'defaultConnectionId',
-    envVar: 'SQLPAD_DEFAULT_CONNECTION_ID',
-    default: '',
+    deprecated: 'To be removed in v6. Use SQLPAD_GOOGLE_CLIENT_ID instead.',
   },
   {
     key: 'googleClientId',
-    envVar: 'GOOGLE_CLIENT_ID',
+    envVar: 'SQLPAD_GOOGLE_CLIENT_ID',
     default: '',
   },
   {
-    key: 'googleClientSecret',
+    key: 'googleClientSecret_d',
     envVar: 'GOOGLE_CLIENT_SECRET',
+    default: '',
+    deprecated: 'To be removed in v6. Use SQLPAD_GOOGLE_CLIENT_SECRET instead.',
+  },
+  {
+    key: 'googleClientSecret',
+    envVar: 'SQLPAD_GOOGLE_CLIENT_SECRET',
     default: '',
   },
   {
@@ -202,22 +189,34 @@ const configItems = [
     key: 'ldapBaseDN_d',
     envVar: 'LDAP_BASE_DN',
     default: '',
-    deprecated: 'To be removed in v6. Use SQLPAD_LDAP_BASE_DN instead.',
+    deprecated: 'To be removed in v6. Use SQLPAD_LDAP_SEARCH_BASE instead.',
   },
   {
     key: 'ldapBaseDN',
     envVar: 'SQLPAD_LDAP_BASE_DN',
+    default: '',
+    deprecated: 'To be removed in v6. Use SQLPAD_LDAP_SEARCH_BASE instead.',
+  },
+  {
+    key: 'ldapSearchBase',
+    envVar: 'SQLPAD_LDAP_SEARCH_BASE',
     default: '',
   },
   {
     key: 'ldapUsername_d',
     envVar: 'LDAP_USERNAME',
     default: '',
-    deprecated: 'To be removed in v6. Use SQLPAD_LDAP_USERNAME instead.',
+    deprecated: 'To be removed in v6. Use SQLPAD_LDAP_BIND_DN instead.',
   },
   {
     key: 'ldapUsername',
     envVar: 'SQLPAD_LDAP_USERNAME',
+    default: '',
+    deprecated: 'To be removed in v6. Use SQLPAD_LDAP_BIND_DN instead.',
+  },
+  {
+    key: 'ldapBindDN',
+    envVar: 'SQLPAD_LDAP_BIND_DN',
     default: '',
   },
   {
@@ -229,6 +228,11 @@ const configItems = [
   {
     key: 'ldapPassword',
     envVar: 'SQLPAD_LDAP_PASSWORD',
+    default: '',
+  },
+  {
+    key: 'ldapSearchFilter',
+    envVar: 'SQLPAD_LDAP_SEARCH_FILTER',
     default: '',
   },
   {
@@ -264,11 +268,6 @@ const configItems = [
     key: 'authDisabledDefaultRole',
     envVar: 'SQLPAD_AUTH_DISABLED_DEFAULT_ROLE',
     default: '', // TODO change to 'editor' in v6, when removing SQLPAD_DISABLE_AUTH_DEFAULT_ROLE
-  },
-  {
-    key: 'disableAuthDefaultRole',
-    envVar: 'SQLPAD_DISABLE_AUTH_DEFAULT_ROLE',
-    default: 'editor',
   },
   {
     key: 'allowCsvDownload',
