@@ -1,27 +1,27 @@
 import React, { useEffect } from 'react';
 import { Redirect } from 'react-router-dom';
-import { connect } from 'unistore/react';
-import initApp from './stores/initApp';
+import { initApp } from './stores/editor-actions';
+import { useInitialized } from './stores/editor-store';
+import { api } from './utilities/api';
 import useAppContext from './utilities/use-app-context';
-import useSWR from 'swr';
 
 export interface Props {
+  // TS doesn't like this set as ReactNode
   children: any;
-  initApp: (config: Object, connections?: Array<Object>) => {};
-  initialized?: boolean;
 }
 
 const Authenticated = (props: Props) => {
-  const { children, initApp, initialized } = props;
+  const { children } = props;
   const { config, currentUser } = useAppContext();
+  const initialized = useInitialized();
 
-  let { data: connections } = useSWR('/api/connections');
+  let { data: connections } = api.useConnections();
 
   useEffect(() => {
     if (config && !initialized && connections) {
       initApp(config, connections);
     }
-  }, [initApp, config, connections, initialized]);
+  }, [config, connections, initialized]);
 
   if (!config) {
     return null;
@@ -38,6 +38,4 @@ const Authenticated = (props: Props) => {
   return children;
 };
 
-export default connect<any, any, any, any>(['initialized'], {
-  initApp,
-})(Authenticated);
+export default Authenticated;

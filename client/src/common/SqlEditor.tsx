@@ -10,10 +10,10 @@ require(`ace-builds/src-noconflict/theme-sqlserver`);
 const noop = () => {};
 
 export interface Props {
-  onChange?: () => {};
+  onChange?: (value: string) => void;
   readOnly: boolean;
   value: string;
-  onSelectionChange: (value: string) => {};
+  onSelectionChange: (value: string) => void;
 }
 
 function SqlEditor({ onChange, readOnly, value, onSelectionChange }: Props) {
@@ -35,7 +35,7 @@ function SqlEditor({ onChange, readOnly, value, onSelectionChange }: Props) {
         }
       });
 
-      editor.session.setUseWrapMode(Boolean(config.editorWordWrap));
+      editor.session.setUseWrapMode(Boolean(config?.editorWordWrap));
     }
   }, [editor, onChange, config]);
 

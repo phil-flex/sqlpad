@@ -15,8 +15,7 @@ function makeEmail(config) {
     const urlPort = port === 80 ? '' : ':' + port;
     const urlPublicUrl = config.get('publicUrl');
     const urlBaseUrl = config.get('baseUrl');
-    //Phil:fix return `${urlPublicUrl}${urlPort}${urlBaseUrl}${path}`;
-	return `${urlPublicUrl}${urlBaseUrl}${path}`;
+    return `${urlPublicUrl}${urlPort}${urlBaseUrl}${path}`;
   }
 
   function sendForgotPassword(to, passwordResetPath) {

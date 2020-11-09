@@ -1,14 +1,13 @@
 import GoogleIcon from 'mdi-react/GoogleIcon';
 import React, { useEffect, useState } from 'react';
 import { Link, Redirect } from 'react-router-dom';
-import { mutate } from 'swr';
 import Button from './common/Button';
+import ButtonLink from './common/ButtonLink';
 import Input from './common/Input';
 import message from './common/message';
 import Spacer from './common/Spacer';
-import { api } from './utilities/fetch-json';
+import { api } from './utilities/api';
 import useAppContext from './utilities/use-app-context';
-import ButtonLink from './common/ButtonLink';
 
 function SignIn() {
   const [email, setEmail] = useState('');
@@ -28,7 +27,7 @@ function SignIn() {
     if (json.error) {
       return message.error('Username or password incorrect');
     }
-    await mutate('api/app');
+    await api.reloadAppInfo();
     setRedirect(true);
   };
 
@@ -40,20 +39,21 @@ function SignIn() {
     return null;
   }
 
-  function PlaceholderForUsername() {
-    if (config.ldapConfigured) {
-      return 'Username or e-mail address';
-    } else {
-      return 'e-mail address';
-    }
+  let placeholderText = '';
+  if (config.ldapConfigured && config.localAuthConfigured) {
+    placeholderText = 'username or email address';
+  } else if (config.ldapConfigured) {
+    placeholderText = 'username';
+  } else if (config.localAuthConfigured) {
+    placeholderText = 'email address';
   }
 
-  const localForm = (
+  const localLdapForm = (
     <form onSubmit={signIn}>
       <Input
         name="email"
         type="email"
-        placeholder={PlaceholderForUsername()}
+        placeholder={placeholderText}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
           setEmail(e.target.value)
         }
@@ -79,18 +79,21 @@ function SignIn() {
         Sign in
       </Button>
       <Spacer />
-      <Link
-        style={{
-          display: 'inline-block',
-          width: '100%',
-          textAlign: 'center',
-        }}
-        to="/signup"
-      >
-        Sign Up
-      </Link>
 
-      {config.smtpConfigured ? (
+      {config.localAuthConfigured && (
+        <Link
+          style={{
+            display: 'inline-block',
+            width: '100%',
+            textAlign: 'center',
+          }}
+          to="/signup"
+        >
+          Sign Up
+        </Link>
+      )}
+
+      {config.localAuthConfigured && config.smtpConfigured ? (
         <Link to="/forgot-password">Forgot Password</Link>
       ) : null}
     </form>
@@ -109,7 +112,7 @@ function SignIn() {
   );
 
   function createMarkupForSamlLink() {
-    return { __html: config.samlLinkHtml };
+    return { __html: config?.samlLinkHtml || '' };
   }
 
   const samlForm = (
@@ -142,7 +145,7 @@ function SignIn() {
   return (
     <div style={{ width: '300px', textAlign: 'center', margin: '100px auto' }}>
       <h1>SQLPad</h1>
-      {config.localAuthConfigured && localForm}
+      {(config.localAuthConfigured || config.ldapConfigured) && localLdapForm}
       {config.googleAuthConfigured && googleForm}
       {config.samlConfigured && samlForm}
       {config.oidcConfigured && oidcForm}

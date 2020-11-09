@@ -1,38 +1,25 @@
 import React from 'react';
-import { connect } from 'unistore/react';
+import { handleChartConfigurationFieldsChange } from '../stores/editor-actions';
 import {
-  handleChartConfigurationFieldsChange,
-  handleChartTypeChange,
-} from '../stores/queries';
+  useSessionQueryResult,
+  useSessionChartType,
+  useSessionChartFields,
+} from '../stores/editor-store';
 import ChartInputs from './ChartInputs';
 
-function mapStateToProps(state: any) {
-  return {
-    queryResult: state.queryResult,
-    chartType: state.query && state.query.chart && state.query.chart.chartType,
-    fields: state.query && state.query.chart && state.query.chart.fields,
-  };
-}
+function ChartInputsContainer() {
+  const queryResult = useSessionQueryResult();
+  const chartType = useSessionChartType();
+  const chartFields = useSessionChartFields();
 
-const Connected = connect(mapStateToProps, {
-  handleChartConfigurationFieldsChange,
-  handleChartTypeChange,
-})(React.memo(ChartInputsContainer));
-
-function ChartInputsContainer({
-  chartType,
-  fields,
-  queryResult,
-  handleChartConfigurationFieldsChange,
-}: any) {
   return (
     <ChartInputs
       chartType={chartType}
-      queryChartConfigurationFields={fields}
+      queryChartConfigurationFields={chartFields}
       onChartConfigurationFieldsChange={handleChartConfigurationFieldsChange}
       queryResult={queryResult}
     />
   );
 }
 
-export default Connected;
+export default React.memo(ChartInputsContainer);

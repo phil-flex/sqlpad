@@ -1,7 +1,6 @@
 import SuccessIcon from 'mdi-react/CheckboxMarkedCircleOutlineIcon';
 import CloseCircleOutlineIcon from 'mdi-react/CloseCircleOutlineIcon';
-import React, { useEffect, useState } from 'react';
-import useSWR, { mutate } from 'swr';
+import React, { ChangeEvent, ReactNode, useEffect, useState } from 'react';
 import Button from '../common/Button';
 import ErrorBlock from '../common/ErrorBlock';
 import FormExplain from '../common/FormExplain';
@@ -11,40 +10,57 @@ import message from '../common/message';
 import Select from '../common/Select';
 import SpinKitCube from '../common/SpinKitCube';
 import TextArea from '../common/TextArea';
-import { api } from '../utilities/fetch-json';
+import { api } from '../utilities/api';
 
 const TEXT = 'TEXT';
 const PASSWORD = 'PASSWORD';
 const CHECKBOX = 'CHECKBOX';
 const TEXTAREA = 'TEXTAREA';
 
+interface ValueMap {
+  [key: string]: string | number | boolean | null | undefined | ValueMap;
+}
+
+interface Edits extends ValueMap {
+  name?: string;
+  driver?: string;
+  idleTimeoutMinutes?: string;
+  multiStatementTransactionEnabled?: boolean;
+  data?: ValueMap;
+}
+
 function ConnectionForm({ connectionId, onConnectionSaved }: any) {
-  const [connectionEdits, setConnectionEdits] = useState({});
+  const [connectionEdits, setConnectionEdits] = useState<Edits>({});
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [tested, setTested] = useState(false);
-  const [testError, setTestError] = useState(null);
+  const [testError, setTestError] = useState<string | undefined | null>(null);
   const [loading, setLoading] = useState(false);
 
-  let { data: drivers } = useSWR('/api/drivers');
-  drivers = drivers || [];
+  const { data: drivers } = api.useDrivers();
 
-  async function getConnection(connectionId: any) {
+  async function getConnection(connectionId: string) {
     if (connectionId) {
       setLoading(true);
-      const json = await api.get(`/api/connections/${connectionId}`);
+      const json = await api.getConnection(connectionId);
       setLoading(false);
       if (json.error) {
-        message.error(json.error);
-      } else {
-        // Convert seconds to minutes for a more user-friendly experience
-        const idleTimeoutSeconds =
-          json.data && parseInt(json.data.idleTimeoutSeconds, 10);
-        if (idleTimeoutSeconds) {
-          json.data.idleTimeoutMinutes = Math.round(idleTimeoutSeconds / 60);
-        }
-        setConnectionEdits(json.data);
+        return message.error(json.error);
       }
+
+      const conn = json.data;
+      // Convert seconds to minutes for a more user-friendly experience
+      const idleTimeoutSeconds = conn?.idleTimeoutSeconds;
+      setConnectionEdits({
+        name: conn?.name,
+        driver: conn?.driver,
+        idleTimeoutMinutes: idleTimeoutSeconds
+          ? Math.round(idleTimeoutSeconds / 60).toString()
+          : '',
+        multiStatementTransactionEnabled:
+          conn?.multiStatementTransactionEnabled,
+        data: conn?.data,
+      });
     }
   }
 
@@ -58,7 +74,6 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
 
   const setConnectionDataValue = (key: any, value: any) => {
     setConnectionEdits((prev) => {
-      // @ts-expect-error ts-migrate(2339) FIXME: Property 'data' does not exist on type '{}'.
       const data = prev.data || {};
       return {
         ...prev,
@@ -69,7 +84,6 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
 
   const testConnection = async () => {
     setTesting(true);
-    // @ts-expect-error ts-migrate(2339) FIXME: Property 'data' does not exist on type '{}'.
     const data = connectionEdits.data || {};
     const json = await api.post('/api/test-connection', {
       ...connectionEdits,
@@ -91,21 +105,18 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
     setSaving(true);
 
     // connectionEdits.idleTimeoutMinutes needs to be converted to seconds
-    // @ts-expect-error ts-migrate(2339) FIXME: Property 'idleTimeoutMinutes' does not exist on ty... Remove this comment to see the full error message
-    const idleTimeoutMinutes = parseInt(connectionEdits.idleTimeoutMinutes, 10);
+    const idleTimeoutMinutes = parseInt(
+      connectionEdits.idleTimeoutMinutes || '0',
+      10
+    );
     if (idleTimeoutMinutes) {
-      // @ts-expect-error ts-migrate(2339) FIXME: Property 'idleTimeoutSeconds' does not exist on ty... Remove this comment to see the full error message
       connectionEdits.idleTimeoutSeconds = idleTimeoutMinutes * 60;
     }
 
     let json;
-    // @ts-expect-error ts-migrate(2339) FIXME: Property 'id' does not exist on type '{}'.
     if (connectionEdits.id) {
       json = await api.put(
-        `/api/connections/${
-          // @ts-expect-error ts-migrate(2339) FIXME: Property 'id' does not exist on type '{}'.
-          connectionEdits.id
-        }`,
+        `/api/connections/${connectionEdits.id}`,
         connectionEdits
       );
     } else {
@@ -116,26 +127,23 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
       setSaving(false);
       return message.error(json.error);
     }
-    mutate('/api/connections');
+    api.reloadConnections();
     return onConnectionSaved(json.data);
   };
 
   const renderDriverFields = () => {
-    // @ts-expect-error ts-migrate(2339) FIXME: Property 'driver' does not exist on type '{}'.
-    if (connectionEdits.driver && drivers.length) {
+    if (connectionEdits.driver && drivers?.length) {
       // NOTE connection.driver is driverId
       const driver = drivers.find(
-        // @ts-expect-error ts-migrate(2339) FIXME: Property 'driver' does not exist on type '{}'.
         (driver: any) => driver.id === connectionEdits.driver
       );
 
       if (!driver) {
-        // @ts-expect-error ts-migrate(2339) FIXME: Property 'driver' does not exist on type '{}'.
         console.error(`Driver ${connectionEdits.driver} not found`);
         return null;
       }
 
-      const fieldsJsx = [];
+      const fieldsJsx: ReactNode[] = [];
       if (driver.supportsConnectionClient) {
         const mstKey = 'multiStatementTransactionEnabled';
         fieldsJsx.push(
@@ -143,7 +151,6 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
             <input
               type="checkbox"
               checked={
-                // @ts-expect-error ts-migrate(2339) FIXME: Property 'multiStatementTransactionEnabled' does n... Remove this comment to see the full error message
                 connectionEdits.multiStatementTransactionEnabled || false
               }
               id={mstKey}
@@ -171,9 +178,8 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
             <Input
               name="idleTimeoutMinutes"
               type="number"
-              // @ts-expect-error ts-migrate(2339) FIXME: Property 'idleTimeoutMinutes' does not exist on ty... Remove this comment to see the full error message
               value={connectionEdits.idleTimeoutMinutes || ''}
-              onChange={(e: any) =>
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
                 setConnectionValue(e.target.name, e.target.value)
               }
             />
@@ -185,7 +191,6 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
       }
 
       const { fields } = driver;
-      // @ts-expect-error ts-migrate(2339) FIXME: Property 'data' does not exist on type '{}'.
       const connectionEditsData = connectionEdits.data || {};
       const driverInputs = fields.map((field: any) => {
         if (field.formType === TEXT) {
@@ -194,8 +199,8 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
             <HorizontalFormItem key={field.key} label={field.label}>
               <Input
                 name={field.key}
-                value={value}
-                onChange={(e: any) =>
+                value={value as string}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
                   setConnectionDataValue(e.target.name, e.target.value)
                 }
               />
@@ -218,8 +223,8 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
                 type="password"
                 autoComplete="new-password"
                 name={field.key}
-                value={value}
-                onChange={(e: any) =>
+                value={value as string}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
                   setConnectionDataValue(e.target.name, e.target.value)
                 }
               />
@@ -233,7 +238,7 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
             </HorizontalFormItem>
           );
         } else if (field.formType === CHECKBOX) {
-          const checked = connectionEditsData[field.key] || false;
+          const checked = Boolean(connectionEditsData[field.key]) || false;
           return (
             <HorizontalFormItem key={field.key}>
               <input
@@ -263,10 +268,10 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
             <HorizontalFormItem key={field.key} label={field.label}>
               <TextArea
                 name={field.key}
-                value={value}
+                value={value as string}
                 cols={45}
                 placeholder={field.placeholder}
-                onChange={(e: any) =>
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
                   setConnectionDataValue(e.target.name, e.target.value)
                 }
               />
@@ -287,12 +292,11 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
     }
   };
 
-  // @ts-expect-error ts-migrate(2339) FIXME: Property 'name' does not exist on type '{}'.
   const { name = '', driver = '' } = connectionEdits;
 
   const driverSelectOptions = [<option key="none" value="" />];
 
-  if (!drivers.length) {
+  if (!drivers?.length) {
     driverSelectOptions.push(
       <option key="loading" value="">
         Loading...
@@ -300,8 +304,15 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
     );
   } else {
     drivers
-      .sort((a: any, b: any) => a.name > b.name)
-      .forEach((driver: any) =>
+      .sort((a, b) => {
+        if (a.name > b.name) {
+          return 1;
+        } else if (a.name < b.name) {
+          return -1;
+        }
+        return 0;
+      })
+      .forEach((driver) =>
         driverSelectOptions.push(
           <option key={driver.id} value={driver.id}>
             {driver.name}
@@ -334,7 +345,7 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
             name="name"
             value={name}
             error={!name}
-            onChange={(e: any) =>
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
               setConnectionValue(e.target.name, e.target.value)
             }
           />
@@ -344,7 +355,7 @@ function ConnectionForm({ connectionId, onConnectionSaved }: any) {
             name="driver"
             value={driver}
             error={!driver}
-            onChange={(event: any) =>
+            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
               setConnectionValue('driver', event.target.value)
             }
           >

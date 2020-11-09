@@ -1,5 +1,35 @@
 # Changelog
 
+## [5.8.4] - 2020-11-04
+
+- Ensure port config value handled as number
+
+## [5.8.3] - 2020-11-04
+
+_accidentally tagged without changes_
+
+## [5.8.2] - 2020-10-30
+
+- Fix LDAP role sync. If LDAP role filters are set up, role syncing may be toggled per user on user forms. By default auto-created users will have roles synced. Manually added users will not.
+- Update dependencies
+- Fix connection client heartbeat race condition (UI)
+
+## [5.8.1] - 2020-10-23
+
+- Fix LDAP editor role search filter
+- Allow empty/`denied` value for `SQLPAD_LDAP_DEFAULT_ROLE` to deny users that do not match LDAP role filters. See [LDAP documentation](http://sqlpad.github.io/sqlpad/#/authentication?id=ldap-experimental) for more info.
+
+## [5.8.0] - 2020-10-22
+
+- Add LDAP auto sign-up and dynamic role assignment based on LDAP search
+- Fix: Allow LDAP auth without local/userpass auth enabled
+- Update dependencies
+
+## [5.7.0] - 2020-10-19
+
+- Add Apache Pinot support
+- Enhance SQL editor autocomplete
+
 ## [5.6.0] - 2020-09-04
 
 - Fix Presto/ClickHouse error display
@@ -18,13 +48,13 @@
 
 ## [5.4.0] - 2020-08-03
 
-- Add configurable query result store (memory, database, and redis now an option). See `SQLPAD_QUERY_RESULT_STORE` under [configuration](https://rickbergfalk.github.io/sqlpad/#/configuration) docs.
+- Add configurable query result store (memory, database, and redis now an option). See `SQLPAD_QUERY_RESULT_STORE` under [configuration](https://sqlpad.github.io/sqlpad/#/configuration) docs.
 - Update MySQL connections to use INTERACTIVE flag to prevent early connection close.
 
 ## [5.3.0] - 2020-07-31
 
 - Embolden result column headers
-- Add configurable session store (memory, database, and redis now an option). See `SQLPAD_SESSION_STORE` under [configuration](https://rickbergfalk.github.io/sqlpad/#/configuration) docs.
+- Add configurable session store (memory, database, and redis now an option). See `SQLPAD_SESSION_STORE` under [configuration](https://sqlpad.github.io/sqlpad/#/configuration) docs.
 - Update server dependencies
 
 ## [5.2.1] - 2020-07-27
@@ -38,7 +68,7 @@ This release introduces new generic webhooks for a variety of events, while depr
 
 The webhooks added support a larger number of events than previously handled, such as queries being run and results/error received from those queries.
 
-- Add webhooks [documentation](http://rickbergfalk.github.io/sqlpad/#/webhooks)
+- Add webhooks [documentation](http://sqlpad.github.io/sqlpad/#/webhooks)
 - Deprecate SMTP email and Slack webhook, both to be removed in v6.
 - Capture database error message on ODBC driver connection error
 - Show service token UI only if enabled via config (#787)
@@ -112,7 +142,7 @@ Special thanks to @eladeyal-intel, @bruth, @yorek, @dengc367, @murphyke, and @Wi
 
 - Test connection error shown
 
-- New `/batches` API for running multi-statement SQL. This replaces `/query-result` API, and is written in a more RESTful approach, removing the need to extend SQLPad timeouts. See [API docs](http://rickbergfalk.github.io/sqlpad/#/api-batches) for more info.
+- New `/batches` API for running multi-statement SQL. This replaces `/query-result` API, and is written in a more RESTful approach, removing the need to extend SQLPad timeouts. See [API docs](http://sqlpad.github.io/sqlpad/#/api-batches) for more info.
 
 - Adds `allowedDomains` config item and deprecates `whitelistedDomains` to be removed in v6.
 
@@ -122,7 +152,7 @@ Special thanks to @eladeyal-intel, @bruth, @yorek, @dengc367, @murphyke, and @Wi
 
 - `denyMultipleStatements` connection option removed. Multiple statements are now attempted to be supported at SQLPad REST API level via `batches` and `statements` API.
 
-- `/download-results/` API has been removed in favor of `/statement-results/`, which is similar but based on `statementId` instead of `cacheKey`. See [API docs](http://rickbergfalk.github.io/sqlpad/#/api-batches) for more info.
+- `/download-results/` API has been removed in favor of `/statement-results/`, which is similar but based on `statementId` instead of `cacheKey`. See [API docs](http://sqlpad.github.io/sqlpad/#/api-batches) for more info.
 
 - `debug` config option removed. Use `appLogLevel` set to `debug` instead.
 
@@ -167,33 +197,33 @@ Special thanks to @eladeyal-intel, @bruth, @yorek, @dengc367, @murphyke, and @Wi
 
 ### Features
 
-- Add Google BigQuery support [documentation](https://rickbergfalk.github.io/sqlpad/#/connections?id=bigquery)
+- Add Google BigQuery support [documentation](https://sqlpad.github.io/sqlpad/#/connections?id=bigquery)
 
-- Add SQLite support [documentation](https://rickbergfalk.github.io/sqlpad/#/connections?id=sqlite)
+- Add SQLite support [documentation](https://sqlpad.github.io/sqlpad/#/connections?id=sqlite)
 
 - Adds batch query support to ODBC (last statement is shown in UI)
 
-- Auth: Add option to disable authentication. [documentation](https://rickbergfalk.github.io/sqlpad/#/authentication?id=no-authentication)
+- Auth: Add option to disable authentication. [documentation](https://sqlpad.github.io/sqlpad/#/authentication?id=no-authentication)
 
   When auth is disabled, application no longer requires authentication.
 
-- Auth: Add proxy authentication support. [documentation](https://rickbergfalk.github.io/sqlpad/#/authentication?id=auth-proxy)
+- Auth: Add proxy authentication support. [documentation](https://sqlpad.github.io/sqlpad/#/authentication?id=auth-proxy)
 
 - Add private/shared query model.
 
   Going forward queries are _private_ by default. When sharing is enabled, query is shared with all users (and they are given write permissions). Finer-grained access to be added in the future (share with specific user, read vs write)
 
-- Add connection and query seed data support [documentation](https://rickbergfalk.github.io/sqlpad/#/seed-data)
+- Add connection and query seed data support [documentation](https://sqlpad.github.io/sqlpad/#/seed-data)
 
 - Add service tokens (api tokens). New menu option is available when logged in as admin.
 
 - Add application header for application-level administration
 
-- Adds multi-statement transaction support for Postgres, SQLite, and ODBC. [documentation](https://rickbergfalk.github.io/sqlpad/#/connections?id=multi-statement-transaction-support)
+- Adds multi-statement transaction support for Postgres, SQLite, and ODBC. [documentation](https://sqlpad.github.io/sqlpad/#/connections?id=multi-statement-transaction-support)
 
 - Add config deprecation for following keys: `debug`, `tableChartLinksRequireAuth`, `keyPath`, `certPath`, `certPassphrase`
 
-- Add connection template support [documentation](https://rickbergfalk.github.io/sqlpad/#/connection-templates)
+- Add connection template support [documentation](https://sqlpad.github.io/sqlpad/#/connection-templates)
 
 - Adds additional query run logging for queries executed and details surrounding them (logged under `info` level)
 
@@ -331,14 +361,14 @@ SQLPad v3 is a UI redesign/refresh along with a large file structure change and 
 - SAML authentication support
 - Remember selected connection id / schema toggle
 - Configurable session time and secret
-- Support for JSON and INI config file added. File should config using `key` fields found in [configItems.js](https://github.com/rickbergfalk/sqlpad/blob/master/server/lib/config/config-items.js). Config file path default is `$HOME/.sqlpadrc` and may otherwise be specified using `--config` via command line or `SQLPAD_CONFIG` environment variable.
+- Support for JSON and INI config file added. File should config using `key` fields found in [configItems.js](https://github.com/sqlpad/sqlpad/blob/master/server/lib/config/config-items.js). Config file path default is `$HOME/.sqlpadrc` and may otherwise be specified using `--config` via command line or `SQLPAD_CONFIG` environment variable.
 
 ### Breaking changes
 
 - CLI flags have been changed to use config item key (#460)
 - Default db path is no longer used if db path is not provided in config. Previous default was `$HOME/sqlpad/db`.
 - Default config file path no longer used. Previous default was `$HOME/.sqlpadrc`.
-- Configuration UI has been removed. See https://github.com/rickbergfalk/sqlpad/issues/447.
+- Configuration UI has been removed. See https://github.com/sqlpad/sqlpad/issues/447.
 - cli-flags in saved .sqlpadrc JSON are no longer used for config values. These configuration keys should instead be switched the the `key` found in `configItems.js`. For example, instead of `dir` or `db`, use `dbPath`. Instead of `cert-passphrase` use `certPassphrase`, etc.
 - `--save` and `--forget` cli flags no longer supported
 
@@ -393,7 +423,7 @@ Query result grid no longer has data bars for numeric values since it didn't mak
 
 ## [2.7.0] - 2018-07-01
 
-- Add optional odbc support. See [ODBC wiki page](https://github.com/rickbergfalk/sqlpad/wiki/ODBC) for more detais
+- Add optional odbc support. See [ODBC wiki page](https://github.com/sqlpad/sqlpad/wiki/ODBC) for more detais
 
 ## [2.6.1] - 2018-06-17
 

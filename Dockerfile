@@ -1,7 +1,7 @@
-FROM node:12.16.1-alpine AS build
+FROM node:12.18.4-alpine3.12 AS build
 
 RUN apk add --update --no-cache \
-    python \
+    python3 \
     make \
     g++
 
@@ -35,6 +35,7 @@ RUN npm run build --prefix client && \
 RUN node server/generate-test-db-fixture.js
 
 # Run tests and linting to validate build
+ENV SKIP_INTEGRATION true
 RUN npm run test --prefix server
 RUN npm run lint
 
@@ -46,7 +47,7 @@ RUN npm prune --production
 
 # Start another stage with a fresh node
 # Copy the server directory that has all the necessary node modules + front end build
-FROM node:12.16.1-alpine
+FROM node:12.18.4-alpine3.12
 
 WORKDIR /usr/app
 

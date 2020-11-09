@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import useSWR from 'swr';
 import Button from '../common/Button';
 import QueryResultContainer from '../common/QueryResultContainer';
+import { api } from '../utilities/api';
 import QueryHistoryFilterItem from './QueryHistoryFilterItem';
 
 function getQueryResult(rows: any) {
@@ -20,39 +20,40 @@ function getQueryResult(rows: any) {
       { name: 'rowCount', datatype: 'number' },
       { name: 'createdAt', datatype: 'datetime' },
     ],
+    status: 'finished',
   };
 }
 
+interface Filter {
+  field: string;
+  operator: string;
+  value: string;
+}
+
 function QueryHistoryContent() {
-  const [filters, setFilters] = useState([]);
+  const [filters, setFilters] = useState<Filter[]>([]);
   const [filterUrl, setFilterUrl] = useState('');
 
   function buildFilterUrlParameter() {
     const urlFilters = filters.map((f) => {
-      // @ts-expect-error ts-migrate(2339) FIXME: Property 'operator' does not exist on type 'never'... Remove this comment to see the full error message
       if (['before', 'after'].includes(f.operator)) {
         try {
-          // @ts-expect-error ts-migrate(2339) FIXME: Property 'value' does not exist on type 'never'.
           f.value = new Date(f.value).toISOString();
         } catch (error) {
-          // @ts-expect-error ts-migrate(2339) FIXME: Property 'value' does not exist on type 'never'.
           f.value = error.message;
         }
       }
-      // @ts-expect-error ts-migrate(2339) FIXME: Property 'field' does not exist on type 'never'.
       return `${f.field}|${f.operator}|${f.value}`;
     });
     return urlFilters.join(',');
   }
-
-  const url = `/api/query-history?filter=${filterUrl}`;
 
   const {
     data: historyData,
     isValidating: isRunning,
     error: queryError,
     mutate,
-  } = useSWR(url);
+  } = api.useQueryHistory(filterUrl);
 
   const queryHistory = getQueryResult(historyData || []) || {};
 
@@ -63,15 +64,12 @@ function QueryHistoryContent() {
   const setFilterValue = (index: any, filterItem: any) => {
     const newFilter = [...filters];
     if ('field' in filterItem) {
-      // @ts-expect-error ts-migrate(2339) FIXME: Property 'field' does not exist on type 'never'.
       newFilter[index].field = filterItem.field;
     }
     if ('operator' in filterItem) {
-      // @ts-expect-error ts-migrate(2339) FIXME: Property 'operator' does not exist on type 'never'... Remove this comment to see the full error message
       newFilter[index].operator = filterItem.operator;
     }
     if ('value' in filterItem) {
-      // @ts-expect-error ts-migrate(2339) FIXME: Property 'value' does not exist on type 'never'.
       newFilter[index].value = filterItem.value;
     }
 
@@ -80,7 +78,6 @@ function QueryHistoryContent() {
 
   const handleAddFilter = () => {
     const newFilters = [...filters];
-    // @ts-expect-error ts-migrate(2322) FIXME: Type 'string' is not assignable to type 'never'.
     newFilters.push({ field: 'userEmail', operator: 'contains', value: '' });
     setFilters(newFilters);
   };
@@ -187,7 +184,6 @@ function QueryHistoryContent() {
         >
           <QueryResultContainer
             isRunning={isRunning}
-            // @ts-expect-error
             queryResult={queryHistory}
             queryError={queryError}
           />

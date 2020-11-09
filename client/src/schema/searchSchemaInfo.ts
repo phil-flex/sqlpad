@@ -1,36 +1,43 @@
-function searchTables(tableMap: any, searchRegEx: any) {
-  const res = {};
-  Object.keys(tableMap).forEach((tableName) => {
+import { ConnectionSchema, Schema, SchemaTable } from '../types';
+
+function searchTables(tables: SchemaTable[], searchRegEx: RegExp) {
+  const res: SchemaTable[] = [];
+  tables.forEach((table) => {
     if (
-      searchRegEx.test(tableName) ||
-      tableMap[tableName].some((col: any) => searchRegEx.test(col.column_name))
+      searchRegEx.test(table.name) ||
+      table.columns.some((col) => searchRegEx.test(col.name))
     ) {
-      // @ts-expect-error ts-migrate(7053) FIXME: No index signature with a parameter of type 'strin... Remove this comment to see the full error message
-      res[tableName] = tableMap[tableName];
+      res.push(table);
     }
   });
   return res;
 }
 
 /**
- * Search schemaInfo (the hierarchy object storage of schema data) for the search string passed in
- * @param {object} schemaInfo
- * @param {string} search
+ * Search connectionSchema (the hierarchy object storage of schema data) for the search string passed in
+ * @param connectionSchema
+ * @param  search
  */
-export default function searchSchemaInfo(schemaInfo: any, search: any) {
-  const filteredSchemaInfo = {};
+export default function searchSchemaInfo(
+  connectionSchema: ConnectionSchema,
+  search: string
+) {
+  const filteredSchemas: Schema[] = [];
   const searchRegEx = new RegExp(search, 'i');
 
-  if (schemaInfo) {
-    Object.keys(schemaInfo).forEach((schemaName) => {
-      const filteredTableMap = searchTables(
-        schemaInfo[schemaName],
-        searchRegEx
-      );
-      // @ts-expect-error ts-migrate(7053) FIXME: No index signature with a parameter of type 'strin... Remove this comment to see the full error message
-      filteredSchemaInfo[schemaName] = filteredTableMap;
+  if (connectionSchema.schemas) {
+    connectionSchema.schemas.forEach((schema) => {
+      const filteredTables = searchTables(schema.tables, searchRegEx);
+      const filteredSchema = { ...schema, tables: filteredTables };
+      filteredSchemas.push(filteredSchema);
     });
+    return { schemas: filteredSchemas } as ConnectionSchema;
   }
 
-  return filteredSchemaInfo;
+  if (connectionSchema.tables) {
+    const filteredTables = searchTables(connectionSchema.tables, searchRegEx);
+    return { tables: filteredTables } as ConnectionSchema;
+  }
+
+  return connectionSchema;
 }

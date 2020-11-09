@@ -1,65 +1,77 @@
-import React, { useEffect, useState } from 'react';
+import React, { ChangeEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import useSWR, { mutate } from 'swr';
-// @ts-expect-error ts-migrate(7016) FIXME: Try `npm install @types/uuid` if it exists or add ... Remove this comment to see the full error message
 import { v4 as uuidv4 } from 'uuid';
 import Button from '../common/Button';
 import FormExplain from '../common/FormExplain';
 import message from '../common/message';
 import Select from '../common/Select';
 import Spacer from '../common/Spacer';
-import { api } from '../utilities/fetch-json';
+import { api } from '../utilities/api';
+import useAppContext from '../utilities/use-app-context';
 
 function EditUserForm({ userId }: any) {
-  let { data } = useSWR(`/api/users/${userId}`);
-  const user = data || {};
+  let { data: user } = api.useUser(userId);
+  const { config } = useAppContext();
 
-  const [role, setRole] = useState(user.role);
-  const [passwordResetId, setPasswordResetId] = useState(user.passwordResetId);
+  const [role, setRole] = useState(user?.role);
+  const [passwordResetId, setPasswordResetId] = useState(user?.passwordResetId);
+  const [syncAuthRole, setSyncAuthRole] = useState<boolean | undefined | null>(
+    user?.syncAuthRole
+  );
 
   useEffect(() => {
-    setRole(user.role);
-    setPasswordResetId(user.passwordResetId);
-  }, [user.role, user.passwordResetId]);
+    setRole(user?.role);
+    setPasswordResetId(user?.passwordResetId);
+    setSyncAuthRole(user?.syncAuthRole);
+  }, [user]);
 
   // If still loading hide form
-  if (!data) {
+  if (!user) {
     return null;
   }
 
   const handleRoleChange = async (event: any) => {
     setRole(event.target.value);
-    const json = await api.put(`/api/users/${user.id}`, {
+    const json = await api.put(`/api/users/${user?.id}`, {
       role: event.target.value,
     });
     if (json.error) {
       return message.error('Update failed: ' + json.error);
     }
-    mutate('api/users');
-    mutate(`/api/users/${user.id}`);
+    api.reloadUsers(user?.id);
+  };
+
+  const handleSyncAuthChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    setSyncAuthRole(event.target.checked);
+    const json = await api.put(`/api/users/${user?.id}`, {
+      syncAuthRole: event.target.checked,
+    });
+    if (json.error) {
+      return message.error('Update failed: ' + json.error);
+    }
+    api.reloadUsers(user?.id);
   };
 
   const generatePasswordResetLink = async () => {
     const passwordResetId = uuidv4();
-    const json = await api.put('/api/users/' + user.id, {
+    const json = await api.put('/api/users/' + user?.id, {
       passwordResetId,
     });
     if (json.error) {
       return message.error('Update failed: ' + json.error);
     }
     setPasswordResetId(passwordResetId);
-    mutate('api/users');
-    mutate(`/api/users/${user.id}`);
+    api.reloadUsers(user?.id);
   };
 
   const removePasswordResetLink = async () => {
-    const json = await api.put(`/api/users/${user.id}`, {
+    const json = await api.put(`/api/users/${user?.id}`, {
       passwordResetId: '',
     });
     if (json.error) {
       return message.error('Remove reset failed: ' + json.error);
     }
-    setPasswordResetId(null);
+    setPasswordResetId(undefined);
   };
 
   const renderReset = () => {
@@ -100,6 +112,26 @@ function EditUserForm({ userId }: any) {
       <FormExplain>
         Admins can manage database connections and users
       </FormExplain>
+      {config?.ldapConfigured && config?.ldapRolesConfigured && (
+        <>
+          <Spacer size={2} />
+          <input
+            type="checkbox"
+            checked={Boolean(syncAuthRole)}
+            id="syncAuthRole"
+            name="syncAuthRole"
+            onChange={handleSyncAuthChange}
+          />
+          <label htmlFor="syncAuthRole" style={{ marginLeft: 8 }}>
+            Sync role with LDAP auth
+          </label>
+          <FormExplain>
+            If LDAP Role filters are enabled, role assignment will be kept in
+            sync as users log in if checked. Users created by LDAP auto-sign-up
+            will have this turned on by default.
+          </FormExplain>
+        </>
+      )}
       <Spacer size={3} />
       {renderReset()}
     </div>

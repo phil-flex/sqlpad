@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import useSWR from 'swr';
 import Button from '../common/Button';
 import DeleteConfirmButton from '../common/DeleteConfirmButton';
 import ListItem from '../common/ListItem';
 import message from '../common/message';
 import Modal from '../common/Modal';
 import Text from '../common/Text';
-import { api } from '../utilities/fetch-json';
+import { User } from '../types';
+import { api } from '../utilities/api';
 import useAppContext from '../utilities/use-app-context';
 import EditUserForm from './EditUserForm';
 import InviteUserForm from './InviteUserForm';
@@ -14,11 +14,11 @@ import InviteUserForm from './InviteUserForm';
 function UserList() {
   const { currentUser } = useAppContext();
   const [showAddUser, setShowAddUser] = useState(false);
-  const [editUser, setEditUser] = useState(null);
+  const [editUser, setEditUser] = useState<User | null>(null);
   const [toggling, setToggling] = useState(false);
 
-  const { data: usersData, error, mutate } = useSWR('/api/users');
-  const users = (usersData || []).map((user: any) => ({
+  const { data: usersData, error, mutate } = api.useUsers();
+  const users = (usersData || []).map((user) => ({
     ...user,
     key: user.id,
   }));
@@ -47,12 +47,12 @@ function UserList() {
     mutate(mutatedUsers);
   };
 
-  const handleDelete = async (user: any) => {
-    const json = await api.delete(`/api/users/${user.id}`);
+  const handleDelete = async (user: User) => {
+    const json = await api.deleteUser(user.id);
     if (json.error) {
       return message.error('Delete Failed: ' + json.error);
     }
-    mutate(users.filter((u: any) => u.id !== user.id));
+    mutate(users.filter((u) => u.id !== user.id));
   };
 
   const handleOnInvited = () => {
@@ -99,8 +99,7 @@ function UserList() {
             <DeleteConfirmButton
               key="delete"
               confirmMessage={`Delete ${user.email}?`}
-              // @ts-expect-error
-              onConfirm={(e: any) => handleDelete(user)}
+              onConfirm={() => handleDelete(user)}
               style={{ marginLeft: 8 }}
             >
               Delete
@@ -108,12 +107,10 @@ function UserList() {
           );
         }
 
-        let additionalUserInfo = '';
+        let additionalUserInfo = <em> </em>;
         if (user.disabled) {
-          // @ts-expect-error ts-migrate(2322) FIXME: Type 'Element' is not assignable to type 'string'.
           additionalUserInfo = <em> - disabled</em>;
         } else if (!user.signupAt) {
-          // @ts-expect-error ts-migrate(2322) FIXME: Type 'Element' is not assignable to type 'string'.
           additionalUserInfo = <em> - not signed up yet</em>;
         }
 
@@ -135,25 +132,21 @@ function UserList() {
         title="Add user"
         visible={showAddUser}
         width={'500px'}
-        // @ts-expect-error
         onClose={() => setShowAddUser(false)}
       >
         <InviteUserForm onInvited={handleOnInvited} />
       </Modal>
 
       <Modal
-        // @ts-expect-error ts-migrate(2531) FIXME: Object is possibly 'null'.
-        title={editUser && editUser.email}
+        title={editUser?.email || ''}
         visible={Boolean(editUser)}
         width={'500px'}
-        // @ts-expect-error
         onClose={() => {
           mutate();
           setEditUser(null);
         }}
       >
-        {/* @ts-expect-error ts-migrate(2531) FIXME: Object is possibly 'null'. */}
-        <EditUserForm userId={editUser && editUser.id} />
+        <EditUserForm userId={editUser?.id} />
       </Modal>
     </>
   );

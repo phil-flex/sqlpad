@@ -79,7 +79,7 @@ makeDb(config);
 
 const baseUrl = config.get('baseUrl');
 const ip = config.get('ip');
-const port = config.get('port');
+const port = parseInt(config.get('port'), 10);
 const certPassphrase =
   config.get('certPassphrase') || config.get('certPassphrase_d');
 const keyPath = config.get('keyPath') || config.get('keyPath_d');
@@ -99,7 +99,7 @@ function isFdObject(ob) {
 //
 // More info
 //
-// https://github.com/rickbergfalk/sqlpad/pull/185
+// https://github.com/sqlpad/sqlpad/pull/185
 // https://www.freedesktop.org/software/systemd/man/systemd.socket.html
 // https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html
 function detectPortOrSystemd(port) {

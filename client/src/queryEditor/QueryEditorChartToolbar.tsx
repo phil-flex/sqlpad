@@ -1,26 +1,19 @@
 import DownloadIcon from 'mdi-react/DownloadIcon';
 import OpenInNewIcon from 'mdi-react/OpenInNewIcon';
 import React from 'react';
-import { connect } from 'unistore/react';
 import IconButton from '../common/IconButton';
 import { exportPng } from '../common/tauChartRef';
+import {
+  useSessionQueryId,
+  useSessionQueryName,
+  useSessionQueryResult,
+} from '../stores/editor-store';
 
-function mapStateToProps(state: any) {
-  return {
-    queryId: (state.query && state.query.id) || 'new',
-    queryName: (state.query && state.query.name) || 'New query',
-    queryResult: state.queryResult,
-  };
-}
+function QueryEditorChartToolbar({ children }: any) {
+  const queryId = useSessionQueryId() || 'new';
+  const queryName = useSessionQueryName() || 'New query';
+  const queryResult = useSessionQueryResult();
 
-const Connected = connect(mapStateToProps)(QueryEditorChartToolbar);
-
-function QueryEditorChartToolbar({
-  queryResult,
-  queryId,
-  queryName,
-  children,
-}: any) {
   const downloadEnabled =
     queryResult && queryResult.rows && queryResult.rows.length;
 
@@ -40,7 +33,6 @@ function QueryEditorChartToolbar({
         <IconButton
           disabled={queryId === 'new'}
           to={`/query-chart/${queryId}`}
-          // @ts-expect-error
           target="_blank"
           rel="noopener noreferrer"
           tooltip="Open chart in new window"
@@ -66,4 +58,4 @@ function QueryEditorChartToolbar({
   );
 }
 
-export default Connected;
+export default QueryEditorChartToolbar;

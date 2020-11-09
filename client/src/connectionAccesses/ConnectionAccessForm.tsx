@@ -1,17 +1,28 @@
-import React, { useState } from 'react';
-import useSWR from 'swr';
+import sortBy from 'lodash/sortBy';
+import React, { ChangeEvent, useState } from 'react';
 import Button from '../common/Button';
 import HorizontalFormItem from '../common/HorizontalFormItem';
 import Input from '../common/Input';
 import message from '../common/message';
 import Select from '../common/Select';
-import { api } from '../utilities/fetch-json';
+import { ConnectionAccess } from '../types';
+import { api } from '../utilities/api';
 
-function ConnectionAccessForm({ onConnectionAccessSaved }: any) {
-  const [connectionAccessEdits, setConnectionAccessEdits] = useState({});
+type Edits = {
+  connectionId?: string;
+  userId?: string;
+  duration?: string;
+};
+
+interface Props {
+  onConnectionAccessSaved: (connectionAccess: ConnectionAccess) => void;
+}
+
+function ConnectionAccessForm({ onConnectionAccessSaved }: Props) {
+  const [connectionAccessEdits, setConnectionAccessEdits] = useState<Edits>({});
   const [creating, setCreating] = useState(false);
 
-  let { data: apiConnections } = useSWR('/api/connections');
+  let { data: apiConnections } = api.useConnections();
   const connections = [
     {
       id: '__EVERY_CONNECTION__',
@@ -19,7 +30,7 @@ function ConnectionAccessForm({ onConnectionAccessSaved }: any) {
     },
   ].concat(apiConnections || []);
 
-  let { data: apiUsers } = useSWR('/api/users');
+  let { data: apiUsers } = api.useUsers();
   const users = [
     {
       id: '__EVERYONE__',
@@ -27,7 +38,7 @@ function ConnectionAccessForm({ onConnectionAccessSaved }: any) {
     },
   ].concat(apiUsers || []);
 
-  const setConnectionAccessValue = (key: any, value: any) => {
+  const setConnectionAccessValue = (key: keyof Edits, value: string) => {
     setConnectionAccessEdits((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -49,11 +60,8 @@ function ConnectionAccessForm({ onConnectionAccessSaved }: any) {
   };
 
   const {
-    // @ts-expect-error ts-migrate(2339) FIXME: Property 'connectionId' does not exist on type '{}... Remove this comment to see the full error message
     connectionId = '',
-    // @ts-expect-error ts-migrate(2339) FIXME: Property 'userId' does not exist on type '{}'.
     userId = '',
-    // @ts-expect-error ts-migrate(2339) FIXME: Property 'duration' does not exist on type '{}'.
     duration = '',
   } = connectionAccessEdits;
 
@@ -66,16 +74,13 @@ function ConnectionAccessForm({ onConnectionAccessSaved }: any) {
       </option>
     );
   } else {
-    connections
-      // @ts-expect-error ts-migrate(2345) FIXME: Type 'boolean' is not assignable to type 'number'.
-      .sort((a, b) => a.name > b.name)
-      .forEach((connection) =>
-        connectionSelectOptions.push(
-          <option key={connection.id} value={connection.id}>
-            {connection.name}
-          </option>
-        )
-      );
+    sortBy(connections, ['name']).forEach((connection) =>
+      connectionSelectOptions.push(
+        <option key={connection.id} value={connection.id}>
+          {connection.name}
+        </option>
+      )
+    );
   }
 
   const userSelectOptions = [<option key="none" value="" />];
@@ -87,16 +92,13 @@ function ConnectionAccessForm({ onConnectionAccessSaved }: any) {
       </option>
     );
   } else {
-    users
-      // @ts-expect-error ts-migrate(2345) FIXME: Type 'boolean' is not assignable to type 'number'.
-      .sort((a, b) => a.name > b.name)
-      .forEach((user) =>
-        userSelectOptions.push(
-          <option key={user.id} value={user.id}>
-            {user.email}
-          </option>
-        )
-      );
+    sortBy(users, ['email']).forEach((user) =>
+      userSelectOptions.push(
+        <option key={user.id} value={user.id}>
+          {user.email}
+        </option>
+      )
+    );
   }
 
   return (
@@ -115,7 +117,7 @@ function ConnectionAccessForm({ onConnectionAccessSaved }: any) {
             name="connectionId"
             value={connectionId}
             error={!connectionId}
-            onChange={(event: any) =>
+            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
               setConnectionAccessValue('connectionId', event.target.value)
             }
           >
@@ -127,7 +129,7 @@ function ConnectionAccessForm({ onConnectionAccessSaved }: any) {
             name="userId"
             value={userId}
             error={!userId}
-            onChange={(event: any) =>
+            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
               setConnectionAccessValue('userId', event.target.value)
             }
           >
@@ -138,8 +140,8 @@ function ConnectionAccessForm({ onConnectionAccessSaved }: any) {
           <Input
             name="duration"
             value={duration}
-            onChange={(e: any) =>
-              setConnectionAccessValue(e.target.name, e.target.value)
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setConnectionAccessValue('duration', e.target.value)
             }
           />
         </HorizontalFormItem>

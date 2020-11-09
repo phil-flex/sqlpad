@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { connect } from 'unistore/react';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 import SqlDiff from '../common/SqlDiff';
-import { setQueryState } from '../stores/queries';
+import { setQueryText } from '../stores/editor-actions';
+import { useSessionQueryText } from '../stores/editor-store';
 import {
   getLocalQueryText,
   removeLocalQueryText,
 } from '../utilities/localQueryText';
 
-function UnsavedQuerySelector({ queryId, queryText, setQueryState }: any) {
+function UnsavedQuerySelector({ queryId }: any) {
+  const queryText = useSessionQueryText();
   const [showModal, setShowModal] = useState(false);
   const [unsavedQueryText, setUnsavedQueryText] = useState('');
 
@@ -39,7 +40,7 @@ function UnsavedQuerySelector({ queryId, queryText, setQueryState }: any) {
           onClick={() => {
             setShowModal(false);
             removeLocalQueryText(queryId);
-            setQueryState('queryText', unsavedQueryText);
+            setQueryText(unsavedQueryText);
           }}
         >
           Use unsaved
@@ -52,14 +53,4 @@ function UnsavedQuerySelector({ queryId, queryText, setQueryState }: any) {
   );
 }
 
-function mapStateToProps(state: any, props: any) {
-  return {
-    queryText: state.query && state.query.queryText,
-  };
-}
-
-const Connected = connect(mapStateToProps, { setQueryState })(
-  UnsavedQuerySelector
-);
-
-export default Connected;
+export default UnsavedQuerySelector;

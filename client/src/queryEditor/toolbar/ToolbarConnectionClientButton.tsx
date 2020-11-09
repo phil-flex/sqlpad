@@ -1,23 +1,23 @@
 import ConnectedIcon from 'mdi-react/ServerNetworkIcon';
 import DisconnectedIcon from 'mdi-react/ServerNetworkOffIcon';
 import React, { useState } from 'react';
-import useSWR from 'swr';
-import { connect } from 'unistore/react';
 import IconButton from '../../common/IconButton';
 import {
   connectConnectionClient,
   disconnectConnectionClient,
-} from '../../stores/connections';
+} from '../../stores/editor-actions';
+import {
+  useSessionConnectionClient,
+  useSessionConnectionId,
+} from '../../stores/editor-store';
+import { api } from '../../utilities/api';
 
-function ToolbarConnectionClientButton({
-  connectionClient,
-  selectedConnectionId,
-  connectConnectionClient,
-  disconnectConnectionClient,
-}: any) {
+function ToolbarConnectionClientButton() {
   const [fetching, setFetching] = useState(false);
+  const connectionClient = useSessionConnectionClient();
+  const selectedConnectionId = useSessionConnectionId();
 
-  let { data: connectionsData } = useSWR('/api/connections');
+  let { data: connectionsData } = api.useConnections();
   const connections = connectionsData || [];
 
   async function handleClick() {
@@ -36,7 +36,7 @@ function ToolbarConnectionClientButton({
   }
 
   const connection = connections.find(
-    (connection: any) => connection.id === selectedConnectionId
+    (connection) => connection.id === selectedConnectionId
   );
 
   const supportedAndEnabled =
@@ -61,10 +61,4 @@ function ToolbarConnectionClientButton({
   );
 }
 
-export default connect(
-  ['connectionClient', 'selectedConnectionId'],
-  (store) => ({
-    connectConnectionClient: connectConnectionClient(store),
-    disconnectConnectionClient,
-  })
-)(ToolbarConnectionClientButton);
+export default ToolbarConnectionClientButton;

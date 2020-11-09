@@ -1,14 +1,19 @@
 import debounce from 'lodash/debounce';
 import React, { useEffect } from 'react';
 import SplitPane from 'react-split-pane';
-import { connect } from 'unistore/react';
 import AppHeader from '../app-header/AppHeader';
 import { resizeChart } from '../common/tauChartRef';
 import SchemaInfoLoader from '../schema/SchemaInfoLoader';
 import SchemaSidebar from '../schema/SchemaSidebar';
-import { connectConnectionClient } from '../stores/connections';
-import { loadQuery, resetNewQuery } from '../stores/queries';
-import useSchemaState from '../stores/use-schema-state';
+import {
+  connectConnectionClient,
+  loadQuery,
+  resetNewQuery,
+} from '../stores/editor-actions';
+import {
+  useSessionChartType,
+  useSessionShowSchema,
+} from '../stores/editor-store';
 import DocumentTitle from './DocumentTitle';
 import QueryEditorChart from './QueryEditorChart';
 import QueryEditorChartToolbar from './QueryEditorChartToolbar';
@@ -22,21 +27,13 @@ import UnsavedQuerySelector from './UnsavedQuerySelector';
 const deboucedResearchChart = debounce(resizeChart, 700);
 
 type Props = {
-  loadQuery: (...args: any[]) => any;
   queryId: string;
-  resetNewQuery: (...args: any[]) => any;
-  showVis?: boolean;
 };
 
 function QueryEditor(props: Props) {
-  const {
-    // @ts-expect-error ts-migrate(2339) FIXME: Property 'connectConnectionClient' does not exist ... Remove this comment to see the full error message
-    connectConnectionClient,
-    loadQuery,
-    queryId,
-    resetNewQuery,
-    showVis,
-  } = props;
+  const { queryId } = props;
+  const chartType = useSessionChartType();
+  const showVis = Boolean(chartType);
 
   // Once initialized reset or load query on changes accordingly
   useEffect(() => {
@@ -46,13 +43,13 @@ function QueryEditor(props: Props) {
     } else {
       loadQuery(queryId).then(() => connectConnectionClient());
     }
-  }, [connectConnectionClient, queryId, resetNewQuery, loadQuery]);
+  }, [queryId]);
 
   function handleVisPaneResize() {
     deboucedResearchChart(queryId);
   }
 
-  const { showSchema } = useSchemaState();
+  const showSchema = useSessionShowSchema();
 
   const editorAndVis = showVis ? (
     <SplitPane
@@ -134,17 +131,4 @@ function QueryEditor(props: Props) {
   );
 }
 
-function mapStateToProps(state: any, props: any) {
-  const showVis =
-    state.query && state.query.chart && Boolean(state.query.chart.chartType);
-
-  return {
-    showVis,
-  };
-}
-
-export default connect(mapStateToProps, (store) => ({
-  connectConnectionClient: connectConnectionClient(store),
-  loadQuery,
-  resetNewQuery,
-}))(QueryEditor);
+export default QueryEditor;

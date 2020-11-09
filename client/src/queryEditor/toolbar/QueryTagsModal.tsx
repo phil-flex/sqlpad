@@ -1,36 +1,35 @@
 import React from 'react';
-import useSWR from 'swr';
-import { connect } from 'unistore/react';
 import Modal from '../../common/Modal';
-import MultiSelect from '../../common/MultiSelect';
-import { setQueryState } from '../../stores/queries';
+import MultiSelect, { MultiSelectItem } from '../../common/MultiSelect';
+import { setTags } from '../../stores/editor-actions';
+import { useSessionTags } from '../../stores/editor-store';
+import { api } from '../../utilities/api';
 
-function mapStateToProps(state: any) {
-  return {
-    tags: (state.query && state.query.tags) || [],
-  };
+interface Props {
+  visible: boolean;
+  onClose: () => void;
 }
 
-const ConnectedQueryTagsModal = connect(mapStateToProps, { setQueryState })(
-  React.memo(QueryTagsModal)
-);
+function QueryTagsModal({ visible, onClose }: Props) {
+  const tags = useSessionTags();
 
-function QueryTagsModal({ tags, visible, onClose, setQueryState }: any) {
-  const { data: tagsData } = useSWR(visible ? '/api/tags' : null);
-  const options = (tagsData || []).map((tag: any) => ({
+  const { data: tagsData } = api.useTags(visible);
+  const options = (tagsData || []).map((tag) => ({
     name: tag,
     id: tag,
   }));
-  const selectedItems = tags.map((tag: any) => ({
+  const selectedItems = tags.map((tag) => ({
     name: tag,
     id: tag,
   }));
 
-  const handleChange = (selectedItems: any) => {
-    setQueryState(
-      'tags',
-      selectedItems.map((item: any) => item.name)
-    );
+  const handleChange = (selectedItems: MultiSelectItem[]) => {
+    const tags = selectedItems
+      .map((item) => item.name || '')
+      .map((tag) => tag.trim())
+      .filter((tag) => tag !== '');
+
+    setTags(tags);
   };
 
   return (
@@ -49,4 +48,4 @@ function QueryTagsModal({ tags, visible, onClose, setQueryState }: any) {
   );
 }
 
-export default ConnectedQueryTagsModal;
+export default React.memo(QueryTagsModal);

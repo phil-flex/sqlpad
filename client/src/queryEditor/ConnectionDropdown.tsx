@@ -1,29 +1,27 @@
-import React, { useState } from 'react';
-import useSWR from 'swr';
-import { connect } from 'unistore/react';
+import React, { useState, ChangeEvent } from 'react';
 import Select from '../common/Select';
 import ConnectionEditDrawer from '../connections/ConnectionEditDrawer';
 import ConnectionListDrawer from '../connections/ConnectionListDrawer';
 import {
   connectConnectionClient,
   selectConnectionId,
-} from '../stores/connections';
+} from '../stores/editor-actions';
+import { useSessionConnectionId } from '../stores/editor-store';
+import { Connection } from '../types';
+import { api } from '../utilities/api';
 import useAppContext from '../utilities/use-app-context';
 import styles from './ConnectionDropdown.module.css';
 
-function ConnectionDropdown({
-  connectConnectionClient,
-  selectConnectionId,
-  selectedConnectionId,
-}: any) {
+function ConnectionDropdown() {
   const { currentUser } = useAppContext();
+  const selectedConnectionId = useSessionConnectionId();
   const [showEdit, setShowEdit] = useState(false);
   const [showConnections, setShowConnections] = useState(false);
 
-  let { data: connectionsData, mutate } = useSWR('/api/connections');
+  let { data: connectionsData, mutate } = api.useConnections();
   const connections = connectionsData || [];
 
-  const handleChange = (event: any) => {
+  const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     if (event.target.value === 'new') {
       return setShowEdit(true);
     }
@@ -34,7 +32,7 @@ function ConnectionDropdown({
     connectConnectionClient();
   };
 
-  const handleConnectionSaved = (connection: any) => {
+  const handleConnectionSaved = (connection: Connection) => {
     mutate();
     selectConnectionId(connection.id);
     setShowEdit(false);
@@ -42,7 +40,7 @@ function ConnectionDropdown({
   };
 
   // Only show the connection menu if there's more than one option to select.
-  if (currentUser.role === 'editor' && connections.length === 1) {
+  if (currentUser?.role === 'editor' && connections.length === 1) {
     return null;
   }
 
@@ -57,23 +55,24 @@ function ConnectionDropdown({
       <Select
         style={style}
         className={className}
-        value={selectedConnectionId || undefined}
+        value={selectedConnectionId || ''}
         onChange={handleChange}
       >
-        <option value="">... choose connection</option>
-        {connections.map((conn: any) => {
+        <option value="" hidden>
+          ... choose connection
+        </option>
+        {connections.map((conn) => {
           return (
-            // @ts-expect-error ts-migrate(2322) FIXME: Property 'name' does not exist on type 'DetailedHT... Remove this comment to see the full error message
-            <option key={conn.id} value={conn.id} name={conn.name}>
+            <option key={conn.id} value={conn.id}>
               {conn.name}
             </option>
           );
         })}
 
-        {currentUser.role === 'admin' && (
+        {currentUser?.role === 'admin' && (
           <option value="new">... New connection</option>
         )}
-        {currentUser.role === 'admin' && (
+        {currentUser?.role === 'admin' && (
           <option value="manage">... Manage connections</option>
         )}
       </Select>
@@ -91,7 +90,4 @@ function ConnectionDropdown({
   );
 }
 
-export default connect(['selectedConnectionId'], (store) => ({
-  connectConnectionClient: connectConnectionClient(store),
-  selectConnectionId,
-}))(ConnectionDropdown);
+export default ConnectionDropdown;
