@@ -95,7 +95,11 @@ async function makeApp(config, models) {
     app.use(favicon(icoPath));
   }
 
-  app.use(bodyParser.json());
+  app.use(
+    bodyParser.json({
+      limit: config.get('bodyLimit'),
+    })
+  );
   app.use(
     bodyParser.urlencoded({
       extended: true,
@@ -167,7 +171,6 @@ async function makeApp(config, models) {
   /*  Routes
   ============================================================================= */
   const preAuthRouters = [
-    require('./routes/forgot-password.js'),
     require('./routes/password-reset.js'),
     require('./routes/signout.js'),
     require('./routes/signup.js'),
@@ -224,6 +227,11 @@ async function makeApp(config, models) {
       return next(err);
     }
     appLog.error(err);
+    if (err && err.type === 'entity.too.large') {
+      return res.status(413).json({
+        title: 'Payload Too Large',
+      });
+    }
     return res.status(500).json({
       title: 'Internal Server Error',
     });
@@ -243,9 +251,11 @@ async function makeApp(config, models) {
   if (fs.existsSync(indexTemplatePath)) {
     const html = fs.readFileSync(indexTemplatePath, 'utf8');
     const baseUrlHtml = html
+      .replace(/="\/assets/g, `="${baseUrl}/assets`)
       .replace(/="\/stylesheets/g, `="${baseUrl}/stylesheets`)
       .replace(/="\/javascripts/g, `="${baseUrl}/javascripts`)
       .replace(/="\/images/g, `="${baseUrl}/images`)
+      .replace(/="\/favicon/g, `="${baseUrl}/favicon`)
       .replace(/="\/fonts/g, `="${baseUrl}/fonts`)
       .replace(/="\/static/g, `="${baseUrl}/static`);
     app.use((req, res) => res.send(baseUrlHtml));

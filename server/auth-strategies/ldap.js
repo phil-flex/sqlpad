@@ -1,76 +1,16 @@
 const passport = require('passport');
-const ldap = require('ldapjs');
-const appLog = require('../lib/app-log');
 const LdapStrategy = require('passport-ldapauth');
+const appLog = require('../lib/app-log');
+const ldapUtils = require('../lib/ldap-utils');
 
-/**
- * Convenience wrapper to promisify client.bind() function
- * @param {*} client
- * @param {string} bindDN
- * @param {string} ldapPassword
- */
-function bindClient(client, bindDN, ldapPassword) {
-  return new Promise((resolve, reject) => {
-    client.bind(bindDN, ldapPassword, function (err) {
-      if (err) {
-        return reject(err);
-      }
-      return resolve();
-    });
-  });
-}
-
-/**
- * Convenience wrapper to query ldap and get an array of results
- * If nothing found empty array is returned
- * @param {*} client
- * @param {string} searchBase
- * @param {string} scope - base or sub
- * @param {string} filter - ldap query string
- */
-function queryLdap(client, searchBase, scope, filter) {
-  const opts = {
-    scope,
-    filter,
-  };
-  return new Promise((resolve, reject) => {
-    client.search(searchBase, opts, (err, res) => {
-      const results = [];
-      if (err) {
-        return reject(err);
-      }
-
-      res.on('searchEntry', function (entry) {
-        results.push(entry.object);
-      });
-      res.on('error', function (err) {
-        reject(err);
-      });
-      res.on('end', function () {
-        resolve(results);
-      });
-    });
-  });
-}
-
-function enableLdap(config) {
-  if (!(config.get('ldapAuthEnabled') || config.get('enableLdapAuth'))) {
+async function enableLdap(config) {
+  if (!config.get('ldapAuthEnabled')) {
     return;
   }
 
-  const bindDN =
-    config.get('ldapBindDN') ||
-    config.get('ldapUsername') ||
-    config.get('ldapUsername_d');
-
-  const bindCredentials =
-    config.get('ldapPassword') || config.get('ldapPassword_d');
-
-  const searchBase =
-    config.get('ldapSearchBase') ||
-    config.get('ldapBaseDN') ||
-    config.get('ldapBaseDN_d');
-
+  const bindDN = config.get('ldapBindDN');
+  const bindCredentials = config.get('ldapPassword');
+  const searchBase = config.get('ldapSearchBase');
   const adminRoleFilter = config.get('ldapRoleAdminFilter');
   const editorRoleFilter = config.get('ldapRoleEditorFilter');
 
@@ -84,7 +24,18 @@ function enableLdap(config) {
     ldapDefaultRole = '';
   }
 
-  appLog.info('Enabling ldap authentication strategy.');
+  appLog.info('Enabling LDAP authentication strategy.');
+
+  appLog.debug('Checking LDAP bind config');
+  const canBind = await ldapUtils.ldapCanBind(config);
+  if (canBind) {
+    appLog.debug('LDAP bind successful');
+  } else {
+    appLog.warn(
+      'LDAP bind attempt failed. LDAP auth will still be configured.'
+    );
+  }
+
   passport.use(
     new LdapStrategy(
       {
@@ -94,13 +45,14 @@ function enableLdap(config) {
         usernameField: 'email',
         passwordField: 'password',
         server: {
-          url: config.get('ldapUrl') || config.get('ldapUrl_d'),
+          url: config.get('ldapUrl'),
           searchBase,
           bindDN,
           bindCredentials,
           searchFilter: config.get('ldapSearchFilter'),
-          groupSearchBase: config.get('ldapBaseDN'),
+          groupSearchBase: config.get('ldapSearchBase'),
           groupSearchFilter: '(cn={{dn}})',
+          log: appLog.logger,
         },
       },
       async function passportLdapStrategyHandler(req, profile, done) {
@@ -140,13 +92,16 @@ function enableLdap(config) {
             userIdFilter = `(uid=${profile.uid})`;
           }
 
-          // Email could be multi-valued
-          // For now first is used, but might need to check both in future?
+          // Mail may not always be available on profile
           let email = Array.isArray(profile.mail)
             ? profile.mail[0]
             : profile.mail;
 
-          email = email.toLowerCase();
+          if (typeof email === 'string') {
+            email = email.toLowerCase().trim();
+          }
+
+          const ldapId = profileUsername.toLowerCase();
 
           let role = '';
 
@@ -162,16 +117,14 @@ function enableLdap(config) {
             roleSetByRBAC = true;
 
             // Establish LDAP client to make additional queries
-            const client = ldap.createClient({
-              url: config.get('ldapUrl'),
-            });
-            await bindClient(client, bindDN, bindCredentials);
+            const client = ldapUtils.getClient(config);
+
+            await ldapUtils.bindClient(client, bindDN, bindCredentials);
 
             try {
               if (adminRoleFilter) {
                 const filter = `(&${userIdFilter}${adminRoleFilter})`;
-                appLog.debug(`Running LDAP search ${filter}`);
-                const results = await queryLdap(
+                const results = await ldapUtils.queryLdap(
                   client,
                   searchBase,
                   'sub',
@@ -188,8 +141,7 @@ function enableLdap(config) {
               // If role wasn't found for admin, try running editor search
               if (!role && editorRoleFilter) {
                 const filter = `(&${userIdFilter}${editorRoleFilter})`;
-                appLog.debug(`Running LDAP search ${filter}`);
-                const results = await queryLdap(
+                const results = await ldapUtils.queryLdap(
                   client,
                   searchBase,
                   'sub',
@@ -212,12 +164,26 @@ function enableLdap(config) {
             }
           }
 
-          let user = await models.users.findOneByEmail(email);
+          // Find user. Try email first, then ldapId (username) as a fallback
+          // Email might not have been populated
+          let user;
+          if (email) {
+            user = await models.users.findOneByEmail(email);
+          }
+          // There was a brief time in master branch where username was stored in email so try this too
+          if (!user) {
+            user = await models.users.findOneByEmail(ldapId);
+          }
+          if (!user) {
+            user = await models.users.findOneByLdapId(ldapId);
+          }
 
           if (user) {
             if (user.disabled) {
               return done(null, false);
             }
+
+            const updates = {};
 
             // If a role was set by RBAC and user already exists, but role doesn't match, update it
             if (
@@ -226,10 +192,17 @@ function enableLdap(config) {
               user.syncAuthRole &&
               user.role !== role
             ) {
-              const newUser = await models.users.update(user.id, {
-                role,
-              });
-              return done(null, newUser);
+              updates.role = role;
+            }
+
+            // If ldapId has not been captured yet, or it is different update it
+            if (user.ldapId !== ldapId) {
+              updates.ldapId = ldapId;
+            }
+
+            if (Object.keys(updates).length > 0) {
+              const updatedUser = await models.users.update(user.id, updates);
+              return done(null, updatedUser);
             }
 
             // Otherwise return found user
@@ -249,6 +222,7 @@ function enableLdap(config) {
             appLog.debug(`adding user ${profileUsername} to role ${role}`);
             const newUser = await models.users.create({
               email,
+              ldapId,
               role,
               syncAuthRole: true,
               signupAt: new Date(),

@@ -1,9 +1,13 @@
-FROM node:12.18.4-alpine3.12 AS build
+# Need to remote into this image and debug some flow? 
+# docker run -it --rm node:12.21-alpine3.12 /bin/ash
+FROM node:12.21-alpine3.12 AS build
 
 RUN apk add --update --no-cache \
     python3 \
     make \
     g++
+
+RUN npm config set python /usr/bin/python3
 
 WORKDIR /sqlpad
 
@@ -47,7 +51,7 @@ RUN npm prune --production
 
 # Start another stage with a fresh node
 # Copy the server directory that has all the necessary node modules + front end build
-FROM node:12.18.4-alpine3.12
+FROM node:12.20-alpine3.12
 
 WORKDIR /usr/app
 

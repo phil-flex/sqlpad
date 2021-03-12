@@ -1,12 +1,17 @@
+import {
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuItems,
+  MenuPopover,
+} from '@reach/menu-button';
 import React from 'react';
 import { VariableSizeGrid } from 'react-window';
 import throttle from 'lodash/throttle';
 import Draggable from 'react-draggable';
 import Measure from 'react-measure';
-
-interface FieldMeta {
-  datatype: string;
-}
+import { StatementColumn, StatementResults } from '../types';
+import styles from './QueryResultDataTable.module.css';
 
 // https://davidwalsh.name/detect-scrollbar-width
 const scrollbarWidth = () => {
@@ -21,15 +26,15 @@ const scrollbarWidth = () => {
   return scrollbarWidth;
 };
 
-const renderValue = (input: any, fieldMeta: FieldMeta) => {
+const renderValue = (input: any, column: StatementColumn) => {
   if (input === null || input === undefined) {
     return <em>null</em>;
   } else if (input === true || input === false) {
     return input.toString();
-  } else if (fieldMeta.datatype === 'datetime') {
+  } else if (column.datatype === 'datetime') {
     // Remove the letters from ISO string and present as is
     return input.replace('T', ' ').replace('Z', '');
-  } else if (fieldMeta.datatype === 'date') {
+  } else if (column.datatype === 'date') {
     // Formats ISO string to YYYY-MM-DD
     return input.substring(0, 10);
   } else if (typeof input === 'object') {
@@ -45,6 +50,47 @@ const renderValue = (input: any, fieldMeta: FieldMeta) => {
   }
 };
 
+/**
+ * Input fields for clipboard copy value sourcing
+ * The input must be visible/displayed somewhere, in our case offscreen
+ * @param props
+ */
+function OffScreenInput({ id, value }: { id: string; value: string }) {
+  return (
+    <textarea
+      id={id}
+      readOnly
+      style={{ position: 'absolute', left: -9999 }}
+      value={value}
+    />
+  );
+}
+
+/**
+ * MenuItem to query for related input rendered and select and copy its text
+ * @param props
+ */
+function CopyMenuItem({ id, value }: { id: string; value: string }) {
+  let displayValue = value;
+  if (value.length > 30) {
+    displayValue = value.substring(0, 30).trim() + '…';
+  }
+
+  return (
+    <MenuItem
+      onSelect={() => {
+        const copyText: HTMLInputElement | null = document.querySelector(id);
+        if (copyText) {
+          copyText.select();
+          document.execCommand('copy');
+        }
+      }}
+    >
+      Copy <span className="monospace-font">{displayValue}</span> to clipboard
+    </MenuItem>
+  );
+}
+
 // Hide the overflow so the scroll bar never shows in the header grid
 const headerStyle: React.CSSProperties = {
   overflowX: 'hidden',
@@ -56,29 +102,36 @@ const bodyStyle: React.CSSProperties = {
 };
 
 const headerCellStyle: React.CSSProperties = {
-  lineHeight: '30px',
+  lineHeight: '22px',
   backgroundColor: '#f4f4f4',
   justifyContent: 'space-between',
   borderBottom: '1px solid #CCC',
   display: 'flex',
   fontWeight: 'bold',
-  paddingLeft: '.5rem',
-  paddingRight: '.5rem',
+  padding: 4,
 };
 
 const cellStyle: React.CSSProperties = {
-  lineHeight: '30px',
-  paddingLeft: '.5rem',
-  paddingRight: '.5rem',
+  lineHeight: '22px',
+  padding: 4,
   borderBottom: '1px solid #CCC',
   display: 'relative',
+  overflowX: 'hidden',
+  overflowY: 'hidden',
+  color: 'rgba(0, 0, 0, 0.65)',
+  fontFamily:
+    "'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace",
 };
 
 interface QueryResultDataTableProps {
-  queryResult: any;
+  columns: StatementColumn[];
+  rows?: StatementResults;
 }
 
 interface QueryResultDataTableState {
+  contextTop: number;
+  contextLeft: number;
+  cellCopyValue: string;
   dimensions: {
     width: number;
     height: number;
@@ -89,19 +142,14 @@ interface QueryResultDataTableState {
   scrollbarWidth: number;
 }
 
-interface Column {
-  name: string;
-  maxValueLength: number;
-}
-
-// NOTE: PureComponent's shallow compare works for this component
-// because the isRunning prop will toggle with each query execution
-// It would otherwise not rerender on change of prop.queryResult alone
 class QueryResultDataTable extends React.PureComponent<
   QueryResultDataTableProps,
   QueryResultDataTableState
 > {
   state: QueryResultDataTableState = {
+    contextTop: 0,
+    contextLeft: 0,
+    cellCopyValue: '',
     dimensions: {
       width: -1,
       height: -1,
@@ -114,24 +162,40 @@ class QueryResultDataTable extends React.PureComponent<
     this.setState({ scrollbarWidth: scrollbarWidth() });
   };
 
-  static getDerivedStateFromProps(
-    nextProps: QueryResultDataTableProps,
-    prevState: QueryResultDataTableState
-  ) {
-    const { queryResult } = nextProps;
-    const { columnWidths } = prevState;
+  componentDidUpdate = (prevProps: QueryResultDataTableProps) => {
+    const { columns } = this.props;
+    const { columnWidths } = this.state;
 
-    if (queryResult && queryResult.columns) {
-      queryResult.columns.forEach((column: Column) => {
-        const { name, maxValueLength } = column;
+    const { width } = this.state.dimensions;
+
+    let newInitialColumn = false;
+
+    if (columns) {
+      columns.forEach((column) => {
+        const { name, maxLineLength } = column;
         if (!columnWidths[name]) {
-          // (This length is number of characters -- it later gets assigned ~ 20px per char)
-          let valueLength = maxValueLength || 8;
+          newInitialColumn = true;
 
-          if (name.length > valueLength) {
-            valueLength = name.length;
+          // If this is the only column, give it the entire width minus 40px
+          // The 40px accounts for scrollbar + spare column
+          // Also serves as a visual reminder/remains visually consistent with other tables that have empty spare column
+          if (columns.length === 1) {
+            const almostAll = Math.floor(width) - 40;
+            columnWidths[name] = almostAll;
+            return;
           }
-          let columnWidthGuess = valueLength * 20;
+
+          // This length is number of characters in longest line of data for this column
+          let numChars = maxLineLength || 8;
+          const CHAR_PIXEL_WIDTH = 8;
+
+          if (name.length > numChars) {
+            numChars = name.length;
+          }
+          let columnWidthGuess = numChars * CHAR_PIXEL_WIDTH;
+
+          // Column width estimates are capped to range between 100 and 350
+          // No reason other than these seem like good limits
           if (columnWidthGuess < 100) {
             columnWidthGuess = 100;
           } else if (columnWidthGuess > 350) {
@@ -142,8 +206,14 @@ class QueryResultDataTable extends React.PureComponent<
         }
       });
     }
-    return { columnWidths };
-  }
+
+    if (newInitialColumn) {
+      this.setState({ columnWidths }, () => this.recalc(0));
+    } else {
+      // Make sure fake column is added in and sized right
+      this.recalc(0);
+    }
+  };
 
   // NOTE
   // An empty dummy column is added to the grid for visual purposes
@@ -151,17 +221,21 @@ class QueryResultDataTable extends React.PureComponent<
   // If not, it's the dummy column at the end, and it should fill the rest of the grid width
   getColumnWidth = (index: number) => {
     const { columnWidths, scrollbarWidth, dimensions } = this.state;
-    const { queryResult } = this.props;
-    const column: Column = queryResult.columns[index];
+    const { columns } = this.props;
+    const column = columns[index];
     const { width } = dimensions;
 
     if (column) {
-      return columnWidths[column.name];
+      return columnWidths[column.name] || 0;
     }
 
-    const totalWidthFilled = queryResult.columns
-      .map((col: Column) => columnWidths[col.name])
+    const totalWidthFilled = columns
+      .map((col) => columnWidths[col.name])
       .reduce((prev: number, curr: number) => prev + curr, 0);
+
+    if (isNaN(totalWidthFilled)) {
+      return 0;
+    }
 
     const fakeColumnWidth = width - totalWidthFilled - scrollbarWidth;
     return fakeColumnWidth < 10 ? 10 : fakeColumnWidth;
@@ -212,8 +286,8 @@ class QueryResultDataTable extends React.PureComponent<
     rowIndex: number;
     style: React.CSSProperties;
   }) => {
-    const { queryResult } = this.props;
-    const column = queryResult.columns[columnIndex];
+    const { columns } = this.props;
+    const column = columns[columnIndex];
 
     // If dataKey is present this is an actual header to render
     if (column) {
@@ -249,20 +323,27 @@ class QueryResultDataTable extends React.PureComponent<
     rowIndex: number;
     style: React.CSSProperties;
   }) => {
-    const { queryResult } = this.props;
-    const column = queryResult.columns[columnIndex];
+    const { columns, rows } = this.props;
+    const column = columns[columnIndex];
     const finalStyle = Object.assign({}, style, cellStyle);
+
+    let scrollboxClass = styles.scrollboxOdd;
+    let faderClass = styles.faderOdd;
     if (rowIndex % 2 === 0) {
       finalStyle.backgroundColor = '#fafafa';
+      scrollboxClass = styles.scrollboxEven;
+      faderClass = styles.faderEven;
     }
 
     // If dataKey is present this is a real data cell to render
+    // SEE COMMENTS IN QueryResultDataTable.module.css FOR ISSUES IN SHADOW IMPLEMENTATION
     if (column) {
-      const value = queryResult.rows[rowIndex][column.name];
+      const value = rows?.[rowIndex]?.[columnIndex];
       return (
-        <div style={finalStyle}>
-          <div className="truncate">{renderValue(value, column)}</div>
-        </div>
+        <pre className={scrollboxClass} style={finalStyle}>
+          {renderValue(value, column)}
+          <div className={faderClass}></div>
+        </pre>
       );
     }
 
@@ -275,9 +356,28 @@ class QueryResultDataTable extends React.PureComponent<
     );
   };
 
-  getRowHeight() {
+  getRowHeight = (index: number) => {
+    const { rows } = this.props;
+    if (rows) {
+      let lines = 1;
+      const row = rows[index] || [];
+      row.forEach((value) => {
+        if (value === null || value === undefined) {
+          return;
+        }
+        const stringValue =
+          typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+        const valueLines = stringValue.split('\n').length;
+        if (valueLines > lines) {
+          lines = valueLines;
+        }
+      });
+      // Line height is 22px, 8 is 4px padding top and bottom
+      return lines * 22 + 8;
+    }
+
     return 30;
-  }
+  };
 
   // When a scroll occurs in the body grid,
   // synchronize the scroll position of the header grid
@@ -290,19 +390,49 @@ class QueryResultDataTable extends React.PureComponent<
     this.setState({ dimensions: contentRect.bounds });
   };
 
+  handleContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
+
+    // target needs casting as no way of knowing what it is
+    const target = event.target as HTMLDivElement;
+
+    const cellCopyValue = target.innerText || '';
+
+    this.setState({
+      cellCopyValue,
+      contextTop: event.clientY,
+      contextLeft: event.clientX,
+    });
+
+    if (cellCopyValue) {
+      const el = document.getElementById('cell-value-context-menu');
+      const clickEvent = document.createEvent('MouseEvents');
+      clickEvent.initEvent('mousedown', true, true);
+      el?.dispatchEvent(clickEvent);
+    }
+  };
+
   render() {
-    const { queryResult } = this.props;
+    const { columns, rows } = this.props;
+    const { cellCopyValue, contextLeft, contextTop } = this.state;
     const { height, width } = this.state.dimensions;
 
-    if (queryResult && queryResult.rows && queryResult.columns) {
-      const rowCount = queryResult.rows.length;
+    if (rows && columns) {
+      const rowCount = rows.length;
       // Add extra column to fill remaining grid width if necessary
-      const columnCount = queryResult.columns.length + 1;
+      const columnCount = columns.length + 1;
 
       return (
         <Measure bounds onResize={this.handleContainerResize}>
           {({ measureRef }) => (
-            <div ref={measureRef} className="h-100 w-100">
+            <div
+              ref={measureRef}
+              onContextMenu={this.handleContextMenu}
+              className="h-100 w-100"
+              style={{
+                position: 'absolute',
+              }}
+            >
               {/* 
                 Visual hack - On Windows, scrollbar always showing in grid takes up some amount of room on side of content.
                 To account for this, the header width is reduced by scrollbar width.
@@ -319,11 +449,15 @@ class QueryResultDataTable extends React.PureComponent<
                   height: 30,
                 }}
               />
+
+              {/* Input fields for copy-paste value sourcing */}
+              <OffScreenInput id="cell-copy-value" value={cellCopyValue} />
+
               <VariableSizeGrid
                 columnCount={columnCount}
                 rowCount={1}
                 columnWidth={this.getColumnWidth}
-                rowHeight={this.getRowHeight}
+                rowHeight={() => 30}
                 height={30}
                 width={width - this.state.scrollbarWidth}
                 ref={this.headerGrid}
@@ -344,6 +478,31 @@ class QueryResultDataTable extends React.PureComponent<
               >
                 {this.Cell}
               </VariableSizeGrid>
+
+              {/* 
+                This menu is hidden and moves around based on where context-menu click happens 
+                This is hacky but works! reach-ui does not expose the menu components 
+                in a way that allows them to be used for context menu
+              */}
+              <Menu>
+                <MenuButton
+                  id="cell-value-context-menu"
+                  style={{
+                    visibility: 'hidden',
+                    position: 'fixed',
+                    height: 1,
+                    left: contextLeft,
+                    top: contextTop,
+                  }}
+                >
+                  Hidden context menu
+                </MenuButton>
+                <MenuPopover style={{ zIndex: 999999 }}>
+                  <MenuItems>
+                    <CopyMenuItem id="#cell-copy-value" value={cellCopyValue} />
+                  </MenuItems>
+                </MenuPopover>
+              </Menu>
             </div>
           )}
         </Measure>

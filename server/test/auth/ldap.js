@@ -1,10 +1,20 @@
 const assert = require('assert');
 const request = require('supertest');
 const TestUtil = require('../utils');
+const ldapUtils = require('../../lib/ldap-utils');
 
 describe('auth/ldap', function () {
-  before(function () {
-    if (process.env.SKIP_INTEGRATION === 'true') {
+  before(async function () {
+    // If LDAP is available to bind to continue with tests
+    const utils = new TestUtil({
+      ldapAuthEnabled: true,
+      ldapUrl: 'ldap://localhost:10389',
+      ldapBindDN: 'cn=admin,dc=planetexpress,dc=com',
+      ldapPassword: 'GoodNewsEveryone',
+    });
+    const canBind = await ldapUtils.ldapCanBind(utils.config);
+
+    if (!canBind || process.env.SKIP_INTEGRATION === 'true') {
       return this.skip();
     }
   });
@@ -14,7 +24,7 @@ describe('auth/ldap', function () {
       ldapAuthEnabled: true,
       ldapAutoSignUp: true,
       ldapDefaultRole: 'editor',
-      ldapUrl: 'ldap://localhost:389',
+      ldapUrl: 'ldap://localhost:10389',
       ldapBindDN: 'cn=admin,dc=planetexpress,dc=com',
       ldapPassword: 'GoodNewsEveryone',
       ldapSearchFilter: '(uid={{username}})',
@@ -44,7 +54,7 @@ describe('auth/ldap', function () {
       ldapAuthEnabled: true,
       ldapAutoSignUp: true,
       ldapDefaultRole: 'admin',
-      ldapUrl: 'ldap://localhost:389',
+      ldapUrl: 'ldap://localhost:10389',
       ldapBindDN: 'cn=admin,dc=planetexpress,dc=com',
       ldapPassword: 'GoodNewsEveryone',
       ldapSearchFilter: '(uid={{username}})',
@@ -74,7 +84,7 @@ describe('auth/ldap', function () {
       ldapAuthEnabled: true,
       ldapAutoSignUp: true,
       ldapDefaultRole: '',
-      ldapUrl: 'ldap://localhost:389',
+      ldapUrl: 'ldap://localhost:10389',
       ldapBindDN: 'cn=admin,dc=planetexpress,dc=com',
       ldapPassword: 'GoodNewsEveryone',
       ldapSearchFilter: '(uid={{username}})',
@@ -100,7 +110,7 @@ describe('auth/ldap', function () {
       ldapAuthEnabled: true,
       ldapAutoSignUp: false,
       ldapDefaultRole: 'editor',
-      ldapUrl: 'ldap://localhost:389',
+      ldapUrl: 'ldap://localhost:10389',
       ldapBindDN: 'cn=admin,dc=planetexpress,dc=com',
       ldapPassword: 'GoodNewsEveryone',
       ldapSearchFilter: '(uid={{username}})',
@@ -142,7 +152,7 @@ describe('auth/ldap', function () {
     const utils = new TestUtil({
       admin: 'hermes@planetexpress.com',
       ldapAuthEnabled: true,
-      ldapUrl: 'ldap://localhost:389',
+      ldapUrl: 'ldap://localhost:10389',
       ldapBindDN: 'cn=admin,dc=planetexpress,dc=com',
       ldapPassword: 'GoodNewsEveryone',
       ldapSearchFilter: '(uid={{username}})',
@@ -174,7 +184,7 @@ describe('auth/ldap', function () {
     const utils = new TestUtil({
       admin: 'hermes@planetexpress.com',
       ldapAuthEnabled: true,
-      ldapUrl: 'ldap://localhost:389',
+      ldapUrl: 'ldap://localhost:10389',
       ldapBindDN: 'cn=admin,dc=planetexpress,dc=com',
       ldapPassword: 'GoodNewsEveryone',
       ldapSearchFilter: '(uid={{username}})',
@@ -205,7 +215,7 @@ describe('auth/ldap', function () {
       ldapAuthEnabled: true,
       ldapAutoSignUp: true,
       ldapDefaultRole: 'editor',
-      ldapUrl: 'ldap://localhost:389',
+      ldapUrl: 'ldap://localhost:10389',
       ldapBindDN: 'cn=admin,dc=planetexpress,dc=com',
       ldapPassword: 'GoodNewsEveryone',
       ldapSearchFilter: '(uid={{username}})',
@@ -254,7 +264,7 @@ describe('auth/ldap', function () {
       ldapAuthEnabled: true,
       ldapAutoSignUp: true,
       ldapDefaultRole: 'editor',
-      ldapUrl: 'ldap://localhost:389',
+      ldapUrl: 'ldap://localhost:10389',
       ldapBindDN: 'cn=admin,dc=planetexpress,dc=com',
       ldapPassword: 'GoodNewsEveryone',
       ldapSearchFilter: '(uid={{username}})',
@@ -294,7 +304,7 @@ describe('auth/ldap', function () {
       ldapAuthEnabled: true,
       ldapAutoSignUp: true,
       ldapDefaultRole: 'editor',
-      ldapUrl: 'ldap://localhost:389',
+      ldapUrl: 'ldap://localhost:10389',
       ldapBindDN: 'cn=admin,dc=planetexpress,dc=com',
       ldapPassword: 'GoodNewsEveryone',
       ldapSearchFilter: '(uid={{username}})',
@@ -334,7 +344,7 @@ describe('auth/ldap', function () {
       ldapAuthEnabled: true,
       ldapAutoSignUp: true,
       ldapDefaultRole: 'editor',
-      ldapUrl: 'ldap://localhost:389',
+      ldapUrl: 'ldap://localhost:10389',
       ldapBindDN: 'cn=admin,dc=planetexpress,dc=com',
       ldapPassword: 'GoodNewsEveryone',
       ldapSearchFilter: '(uid={{username}})',
@@ -353,6 +363,8 @@ describe('auth/ldap', function () {
 
     const agent = request.agent(utils.app);
 
+    // Initial Sign in will capture ldapId, so this needs to be done twice
+    // Second time it should not change
     await agent
       .post('/api/signin')
       .send({
@@ -361,13 +373,25 @@ describe('auth/ldap', function () {
       })
       .expect(200);
 
-    const afterSignIn = await utils.models.users.findOneByEmail(
+    const afterSignIn1 = await utils.models.users.findOneByEmail(
+      'hermes@planetexpress.com'
+    );
+
+    await agent
+      .post('/api/signin')
+      .send({
+        password: 'hermes',
+        email: 'hermes',
+      })
+      .expect(200);
+
+    const afterSignIn2 = await utils.models.users.findOneByEmail(
       'hermes@planetexpress.com'
     );
 
     assert.equal(
-      initialUser.updatedAt.valueOf(),
-      afterSignIn.updatedAt.valueOf()
+      afterSignIn1.updatedAt.valueOf(),
+      afterSignIn2.updatedAt.valueOf()
     );
   });
 });

@@ -12,6 +12,70 @@ export interface Connection {
   updatedAt: string | Date;
 }
 
+export type StatementResults = Array<Array<any>>;
+
+export interface StatementColumn {
+  datatype:
+    | 'date'
+    | 'datetime'
+    | 'object'
+    | 'number'
+    | 'boolean'
+    | 'string'
+    | null;
+  max?: number | string | Date | boolean;
+  min?: number | string | Date | boolean;
+  /**
+   * Number of characters longest value ignoring new lines
+   */
+  maxValueLength?: number;
+  /**
+   * Number of characters in longest line of data for this column.
+   * Objects are JSON.stringify(value, null, 2)
+   */
+  maxLineLength?: number;
+  name: string;
+}
+
+export interface StatementError {
+  title: string;
+}
+
+export interface Statement {
+  id: string;
+  batchId: string;
+  sequence: number;
+  statementText: string;
+  status: 'queued' | 'started' | 'finished' | 'error';
+  startTime?: string | Date;
+  stopTime?: string | Date;
+  durationMs?: number;
+  columns?: StatementColumn[];
+  rowCount?: number;
+  resultsPath?: string;
+  incomplete?: boolean;
+  error?: StatementError;
+}
+
+export interface Batch {
+  id: string;
+  queryId?: string;
+  name?: string;
+  connectionId: string;
+  connectionClientId: string;
+  status: 'started' | 'finished' | 'error';
+  startTime: string | Date;
+  stopTime: string | Date;
+  durationMs: number;
+  batchText: string;
+  selectedText: string;
+  chart?: QueryChart;
+  statements: Statement[];
+  userId: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
 export type ConnectionFields = Record<string, any>;
 
 export interface ConnectionDetail extends ConnectionFields {
@@ -39,7 +103,6 @@ export interface ConnectionClient {
 }
 
 export interface AppInfo {
-  adminRegistrationOpen: boolean;
   config: {
     allowCsvDownload: boolean;
     // baseUrl app is mounted in. ie "/sqlpad"
@@ -56,14 +119,14 @@ export interface AppInfo {
     samlConfigured: boolean;
     samlLinkHtml: string;
     showServiceTokensUI: boolean;
-    smtpConfigured: string;
   };
   // brief user info if user is logged in
   currentUser?: {
     id: string;
-    email: string;
+    email?: string;
     role: string;
     name?: string;
+    ldapId?: string;
   };
   version: string;
 }
@@ -80,13 +143,15 @@ export interface ACLRecord {
   write: boolean;
 }
 
+export interface QueryChart {
+  fields?: ChartFields;
+  chartType?: string;
+}
+
 export interface Query {
   id: string;
   name: string;
-  chart?: {
-    fields?: ChartFields;
-    chartType?: string;
-  };
+  chart?: QueryChart;
   queryText: string;
   connection: {
     id: string;
@@ -139,15 +204,22 @@ export interface QueryDetail {
 
 export interface User {
   id: string;
-  email: string;
+  email?: string;
   name: string;
   role: string;
+  ldapId?: string;
   syncAuthRole?: boolean | null;
   disabled: boolean;
   signupAt: string | Date;
   createdAt: string | Date;
   updatedAt: string | Date;
   passwordResetId?: string;
+}
+
+export interface UserSelfUpdate {
+  email: string;
+  name: string;
+  password?: string;
 }
 
 export interface ConnectionAccess {
@@ -209,3 +281,5 @@ export interface ConnectionSchema {
   schemas?: Schema[];
   tables?: SchemaTable[];
 }
+
+export type QueryHistoryResponse = Array<Record<string, any>>;
